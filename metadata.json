@@ -1,0 +1,5 @@
+{
+  "name": "KC_Project",
+  "description": "精浆工段数字化管理系统 - 包含孪生大屏、监测、分析及后台管理模块",
+  "requestFramePermissions": []
+}
