@@ -47,6 +47,7 @@ import { ProductionExceptionModal } from './ProductionExceptionModal'; // 引入
 import { ProcessIndicatorModal } from './ProcessIndicatorModal'; // 引入指标下发弹窗
 import { KnifeChangeRecordModal } from './KnifeChangeRecordModal'; // 引入换刀记录弹窗
 import { GapTrendModal } from './GapTrendModal'; // 引入间隙趋势弹窗
+import { MaterialFeedingModal } from './MaterialFeedingModal'; // 引入物料投料弹窗
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -939,7 +940,7 @@ const ShiftInfoCard = () => {
 };
 
 // --- 8. 功能操作快捷区 ---
-const FunctionShortcuts = () => {
+const FunctionShortcuts = ({ onOpenFeed }: { onOpenFeed: () => void }) => {
   return (
     <div className="grid grid-cols-2 gap-3">
       <button className="relative group overflow-hidden bg-white border border-indigo-100 rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 active:scale-[0.98]">
@@ -953,7 +954,10 @@ const FunctionShortcuts = () => {
             <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-700">工艺回溯</span>
          </div>
       </button>
-      <button className="relative group overflow-hidden bg-white border border-blue-100 rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300 active:scale-[0.98]">
+      <button 
+         onClick={onOpenFeed}
+         className="relative group overflow-hidden bg-white border border-blue-100 rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300 active:scale-[0.98]"
+      >
          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
             <Database size={40} className="text-blue-600"/>
          </div>
@@ -967,6 +971,8 @@ const FunctionShortcuts = () => {
     </div>
   );
 };
+
+// ... (Rest of the component code remains unchanged until MonitorDashboard)
 
 // --- 9. 工艺标准卡片 ---
 const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
@@ -1057,6 +1063,8 @@ const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
   );
 };
 
+// ... (Other components remain unchanged)
+
 // --- 10. ProductionExceptionList (Restored & Updated) ---
 const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => {
   const [exceptions, setExceptions] = useState<ProductionExceptionRecord[]>([]);
@@ -1100,6 +1108,8 @@ const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => 
     </div>
   );
 };
+
+// ... (ProcessAlerts and BladeHistoryList remain unchanged)
 
 // --- 11. ProcessAlerts (Restored Exactly as requested) ---
 const ProcessAlerts = () => {
@@ -1254,6 +1264,8 @@ export const MonitorDashboard = () => {
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   // 状态：控制换刀记录弹窗
   const [isKnifeChangeModalOpen, setIsKnifeChangeModalOpen] = useState(false);
+  // 状态：控制物料投料弹窗 (新增)
+  const [isFeedingModalOpen, setIsFeedingModalOpen] = useState(false);
   
   // 新增：父组件获取工艺配置，以同步设备转向
   const [deviceConfigs, setDeviceConfigs] = useState<ProcessIndicatorDeviceConfig[]>([]);
@@ -1352,7 +1364,7 @@ export const MonitorDashboard = () => {
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* 左侧边栏 - 20% */}
         <div className="col-span-2 flex flex-col gap-4 overflow-hidden h-full">
-           <FunctionShortcuts />
+           <FunctionShortcuts onOpenFeed={() => setIsFeedingModalOpen(true)} />
            <ShiftInfoCard />
            <CraftStandardCard onEdit={() => setIsIndicatorModalOpen(true)} />
            <div className="flex-1 min-h-[200px] overflow-hidden">
@@ -1362,6 +1374,7 @@ export const MonitorDashboard = () => {
 
         {/* 右侧主内容 - 80% */}
         <div className="col-span-10 flex flex-col gap-4 overflow-hidden h-full">
+          {/* ... (Main Content: Refiners and Charts remain unchanged) ... */}
           {/* 上半部分：磨浆机组 */}
           <section className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-none">
              <div className="flex justify-between items-center mb-5">
@@ -1490,6 +1503,10 @@ export const MonitorDashboard = () => {
           knifeModel={gapTrendData.model}
           onClose={() => setGapTrendData(null)} 
         />
+      )}
+      {/* 新增：物料投料弹窗 */}
+      {isFeedingModalOpen && (
+        <MaterialFeedingModal onClose={() => setIsFeedingModalOpen(false)} />
       )}
     </div>
   );
