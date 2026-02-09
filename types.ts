@@ -219,6 +219,26 @@ export interface ProductionExceptionRecord {
   team: string;         // 班组 (甲/乙/丙/丁)
 }
 
+// --- 换刀记录 (Knife Change Record) - New v2.1 ---
+export interface KnifeChangeRecord {
+  id: string;
+  date: string;         // yyyy-mm-dd
+  time: string;         // hh:mm (辅助字段，用于排序和展示)
+  
+  // 刀盘型号配置 (只读)
+  device1_knife: string; // 1#精浆机刀盘
+  device2_knife: string; // 2#精浆机刀盘
+  device3_knife: string; // 3#精浆机刀盘
+  device4_knife: string; // 4#精浆机刀盘
+  device5_knife: string; // 5#精浆机刀盘
+  
+  team: string;          // 班组: 甲/乙/丙/丁
+  
+  // 前端辅助字段：标识本次记录哪台设备发生了变更，用于UI高亮
+  changedDeviceIds: number[]; 
+}
+
+
 // --- 3.1.6 数据分析 (Data Analysis) ---
 
 export type OperationSource = '自动操作' | '人工操作';

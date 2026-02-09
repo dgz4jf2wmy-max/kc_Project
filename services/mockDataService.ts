@@ -1,3 +1,4 @@
+
 import { ApiResponse, KnifeDisc, KnifeGapRecord, KnifeUsageRecord } from '../types';
 
 /**
@@ -53,10 +54,10 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2023-001',
         model: 'SCH改进(国产)',
         type: 'cut',
-        status: 'in_use',
+        status: 'idle', // Changed from in_use to idle (Replaced by JQJC-01-3*7CX)
         usageHours: 124.5,
         lastUpTime: '2025-05-16',
-        lastDownTime: '-',
+        lastDownTime: '2025-09-27',
         estimatedLifespan: 500,
         mark: '运行平稳',
         remark: '国产替代测试'
@@ -65,12 +66,12 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2023-002',
         model: 'TC4K',
         type: 'cut',
-        status: 'idle',
+        status: 'in_use', // Changed from idle to in_use (Currently on Device 3)
         usageHours: 450.0,
-        lastUpTime: '2025-02-22',
-        lastDownTime: '2025-03-10',
+        lastUpTime: '2025-09-27', // Updated usage start
+        lastDownTime: '-',
         estimatedLifespan: 600,
-        remark: '备用库A区'
+        remark: '备用库A区调拨'
       },
       {
         id: 'KD-2022-099',
@@ -88,7 +89,7 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2024-101',
         model: 'JQJC-01-3*7CX(国产)',
         type: 'cut',
-        status: 'in_use',
+        status: 'in_use', // Currently on Device 1
         usageHours: 56.2,
         lastUpTime: '2025-09-17',
         lastDownTime: '-',
@@ -110,10 +111,10 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2023-055',
         model: 'TC2(内TC2,外TC)',
         type: 'cut',
-        status: 'idle',
+        status: 'in_use', // Changed from idle to in_use (Currently on Device 2)
         usageHours: 320.5,
         lastUpTime: '2025-04-08',
-        lastDownTime: '2025-05-01',
+        lastDownTime: '-',
         estimatedLifespan: 600,
         mark: '复合型测试',
         remark: ''
@@ -122,10 +123,10 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2023-088',
         model: '国产XC5',
         type: 'grind',
-        status: 'in_use',
+        status: 'idle', // Changed from in_use to idle (Replaced by TC4K)
         usageHours: 210.8,
         lastUpTime: '2025-05-28',
-        lastDownTime: '-',
+        lastDownTime: '2025-09-27',
         estimatedLifespan: 550,
         remark: '性能表现优异'
       },
@@ -133,13 +134,13 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2022-012',
         model: 'LM',
         type: 'cut',
-        status: 'scrapped',
+        status: 'in_use', // Changed from scrapped to in_use (Currently on Device 4 per dashboard)
         usageHours: 900.2,
-        lastUpTime: '2021-05-09',
-        lastDownTime: '2022-06-01',
-        estimatedLifespan: 850,
-        mark: '磨损严重',
-        remark: '旧批次'
+        lastUpTime: '2025-09-01', // Reactivated
+        lastDownTime: '-',
+        estimatedLifespan: 1000, // Extended lifespan
+        mark: '延寿使用',
+        remark: '状态良好，继续服役'
       },
       {
         id: 'KD-2024-003',
@@ -156,7 +157,7 @@ export const fetchKnifeList = async (): Promise<ApiResponse<KnifeDisc[]>> => {
         id: 'KD-2024-004',
         model: 'TS(新)',
         type: 'grind',
-        status: 'in_use',
+        status: 'in_use', // Currently on Device 5
         usageHours: 88.5,
         lastUpTime: '2025-09-03',
         lastDownTime: '-',
@@ -182,14 +183,16 @@ export const fetchKnifeUsageHistory = async (knifeId: string): Promise<ApiRespon
 
 export const fetchKnifeGapAnalysis = async (knifeId: string): Promise<ApiResponse<KnifeGapRecord[]>> => {
   await new Promise(resolve => setTimeout(resolve, 300));
+  // 模拟数据调整：间隙值随时间推移逐渐减小，甚至变为负数
+  // 注意：weekDate 越晚，gapValue 越小
   return {
     code: 200,
     message: 'success',
     data: [
-      { id: '1', weekDate: '2023-10-07', gapValue: 0.45 },
-      { id: '2', weekDate: '2023-09-30', gapValue: 0.42 },
-      { id: '3', weekDate: '2023-09-23', gapValue: 0.40 },
-      { id: '4', weekDate: '2023-09-16', gapValue: 0.38 },
+      { id: '1', weekDate: '2023-10-07', gapValue: -0.15 }, // 最新 (磨损后可能出现负偏离)
+      { id: '2', weekDate: '2023-09-30', gapValue: 0.12 },
+      { id: '3', weekDate: '2023-09-23', gapValue: 0.45 },
+      { id: '4', weekDate: '2023-09-16', gapValue: 0.78 }, // 最早
     ]
   };
 };

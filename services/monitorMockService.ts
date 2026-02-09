@@ -1,5 +1,5 @@
 
-import { ApiResponse, ProcessIndicator } from '../types';
+import { ApiResponse, ProcessIndicator, ProductionExceptionRecord } from '../types';
 
 /**
  * 监测工作台专属 Mock 数据
@@ -111,5 +111,23 @@ export const fetchCurrentProcessIndicator = async (): Promise<ApiResponse<Proces
         { deviceId: '5', rotation: '正转' }
       ]
     }
+  };
+};
+
+/**
+ * 获取生产异常列表 (关联 ProductionExceptionRecord 实体)
+ */
+export const fetchProductionExceptions = async (): Promise<ApiResponse<ProductionExceptionRecord[]>> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  return {
+    code: 200,
+    message: 'success',
+    data: [
+      { id: '1', date: '2025-09-27', team: '甲', description: '在线异常，清洗设备', duration: 11.37 },
+      { id: '2', date: '2025-07-21', team: '乙', description: '更换精浆前池提浆泵叶片', duration: 6.34 },
+      { id: '3', date: '2025-04-02', team: '丁', description: '4#箱浆机卡浆', duration: 3.18 },
+      { id: '4', date: '2025-03-20', team: '丁', description: '提浆泵加装配件', duration: 0.58 },
+      { id: '5', date: '2025-03-18', team: '丙', description: '处理2#送浆系统流量烟', duration: 1.2 }
+    ]
   };
 };

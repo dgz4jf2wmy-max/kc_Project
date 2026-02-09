@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // ----------------------------------------------------------------------
@@ -183,5 +184,65 @@ export const StandardDrawer: React.FC<StandardDrawerProps> = ({
         )}
       </div>
     </>
+  );
+};
+
+// ----------------------------------------------------------------------
+// 6. 标准弹窗组件 (Standard Modal) - NEW v2.0
+// ----------------------------------------------------------------------
+
+interface StandardModalProps {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  width?: string;
+}
+
+/**
+ * 标准弹窗组件
+ * 规范：居中显示、缩放动画 (scale-in)、毛玻璃遮罩
+ */
+export const StandardModal: React.FC<StandardModalProps> = ({ 
+  title, 
+  onClose, 
+  children, 
+  footer,
+  width = "w-[800px]" 
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px] fade-in" 
+        onClick={onClose}
+      ></div>
+      
+      {/* Modal Content */}
+      <div className={`relative bg-white rounded-xl shadow-2xl flex flex-col max-h-[85vh] ${width} scale-in border border-gray-200`}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-xl flex-none">
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <button 
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 p-1 hover:bg-gray-100 rounded transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        {/* Body - Scrollable */}
+        <div className="p-6 overflow-y-auto bg-gray-50/30 rounded-b-xl flex-1">
+          {children}
+        </div>
+
+        {/* Footer (Optional) */}
+        {footer && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end gap-3 flex-none">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

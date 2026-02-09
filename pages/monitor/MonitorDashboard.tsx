@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import * as echarts from 'echarts'; // 引入 ECharts
 import { 
   FileText, 
   Activity, 
@@ -25,6 +26,7 @@ import {
   ChevronRight,
   ArrowRight,
   TrendingDown,
+  TrendingUp, // 新增图标
   Rewind,
   PackagePlus,
   User,
@@ -37,8 +39,14 @@ import {
   AlertCircle,
   RefreshCw
 } from 'lucide-react';
-import { fetchCurrentProcessIndicator } from '../../services/monitorMockService'; // 引入接口
-import { ProcessIndicator } from '../../types'; // 引入实体类
+import { fetchCurrentProcessIndicator, fetchProductionExceptions } from '../../services/monitorMockService'; // 引入接口
+import { fetchLatestKnifeChanges } from '../../services/knifeChangeService'; // 引入换刀服务
+import { fetchDeviceDynamicParams } from '../../services/deviceService'; // 引入设备服务，用于关联台账
+import { ProcessIndicator, ProductionExceptionRecord, KnifeChangeRecord, ProcessIndicatorDeviceConfig, DeviceParam } from '../../types'; // 引入实体类
+import { ProductionExceptionModal } from './ProductionExceptionModal'; // 引入异常弹窗
+import { ProcessIndicatorModal } from './ProcessIndicatorModal'; // 引入指标下发弹窗
+import { KnifeChangeRecordModal } from './KnifeChangeRecordModal'; // 引入换刀记录弹窗
+import { GapTrendModal } from './GapTrendModal'; // 引入间隙趋势弹窗
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -53,16 +61,281 @@ const CONFIG = {
   pipeBottomY: 420      // 底部进出管的绝对 Y 坐标
 };
 
+// --- ECharts 趋势图组件 ---
+interface TrendChartProps {
+  title: string;
+  unit: string;
+  color: string; // 主题色 hex
+  lightColor: string; // 浅色背景 hex
+  currentSoftValue: number;
+  dataHistory: { time: string; value: number }[]; // 历史 30 分钟数据
+  // 新增：工艺标准阈值配置
+  standardValue?: number; 
+  standardDev?: number;
+}
+
+const TrendChart: React.FC<TrendChartProps> = ({ 
+  title, 
+  unit, 
+  color, 
+  lightColor, 
+  currentSoftValue, 
+  dataHistory,
+  standardValue,
+  standardDev
+}) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    // 初始化图表
+    if (!instanceRef.current) {
+      instanceRef.current = echarts.init(chartRef.current);
+    }
+    
+    const chart = instanceRef.current;
+
+    // 构造 X 轴时间标签：历史时间 + 软测量预测时间 (未来5分钟)
+    const times = dataHistory.map(d => d.time);
+    if (times.length > 0) {
+      const lastTimeStr = times[times.length - 1];
+      const [hh, mm] = lastTimeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hh);
+      date.setMinutes(mm + 5);
+      const nextTimeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+      times.push(nextTimeStr);
+    }
+
+    const measureValues = dataHistory.map(d => d.value);
+    
+    // 构造显示数据：
+    // 1. 实线部分: 对应所有历史测量点
+    const solidData = measureValues; 
+    
+    // 2. 虚线部分: 连接最后一个实测点 -> 软测量点
+    // 补齐前面的空位 (undefined) 以便对应 x 轴索引
+    const dashedData = [
+      ...Array(measureValues.length - 1).fill(undefined), 
+      measureValues[measureValues.length - 1], 
+      currentSoftValue
+    ];
+
+    // 计算 Y 轴范围，确保 markArea 完整显示且曲线居中
+    let yMin = Math.min(...measureValues, currentSoftValue);
+    let yMax = Math.max(...measureValues, currentSoftValue);
+    
+    // 如果有标准值，扩大 Y 轴范围以包含标准区域
+    if (standardValue !== undefined && standardDev !== undefined) {
+      yMin = Math.min(yMin, standardValue - standardDev);
+      yMax = Math.max(yMax, standardValue + standardDev);
+    }
+    
+    // 增加一点上下余量
+    const padding = (yMax - yMin) * 0.2;
+    // 防止数据全是 0 或相等导致的范围错误
+    if (padding === 0) {
+        yMin -= 1;
+        yMax += 1;
+    } else {
+        yMin -= padding;
+        yMax += padding;
+    }
+
+    const option: echarts.EChartsOption = {
+      grid: {
+        top: 30,
+        right: 20,
+        bottom: 5,
+        left: 5,
+        containLabel: true // 自动计算 Label 宽度，防止遮挡
+      },
+      tooltip: {
+        trigger: 'axis',
+        confine: true, // 关键修复：将 tooltip 限制在图表容器内，解决被遮挡问题
+        formatter: (params: any) => {
+          let html = `<div class="text-xs font-sans">
+            <div class="text-slate-400 mb-1">${params[0].axisValue}</div>`;
+          params.forEach((p: any) => {
+             if (p.value !== undefined) {
+               const name = p.seriesName;
+               // 软测量显示为 "预测值" 提示
+               const displayName = p.seriesName.includes('软测量') ? '软测量 (预测)' : p.seriesName;
+               html += `<div class="flex items-center gap-2">
+                 <span class="w-1.5 h-1.5 rounded-full" style="background:${p.color}"></span>
+                 <span class="text-slate-200">${displayName}:</span>
+                 <span class="font-bold text-white">${p.value}</span>
+               </div>`;
+             }
+          });
+          html += `</div>`;
+          return html;
+        },
+        backgroundColor: 'rgba(30, 41, 59, 0.95)',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc' },
+        extraCssText: 'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); z-index: 999;'
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: times,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { 
+          color: '#94a3b8', 
+          fontSize: 10, 
+          interval: 1, // 隔一个显示一个时间，防止拥挤
+          formatter: (val: string) => val
+        }
+      },
+      yAxis: {
+        type: 'value',
+        min: yMin, // 修复：使用计算后的 min (包含标准差范围)，替代 Math.floor
+        max: yMax, // 修复：使用计算后的 max，替代 Math.ceil
+        splitLine: {
+          lineStyle: {
+            color: '#f1f5f9',
+            type: 'dashed'
+          }
+        },
+        axisLabel: { 
+          show: true,
+          color: '#94a3b8',
+          fontSize: 9,
+          formatter: (value: number) => value.toFixed(unit === 'mm' ? 2 : 0) // 根据单位格式化精度
+        } 
+      },
+      series: [
+        {
+          name: '测量值',
+          type: 'line',
+          data: [...solidData, undefined], // 只要前面的实测数据 (最后一个位置留给虚线延伸)
+          smooth: true,
+          showSymbol: false,
+          lineStyle: {
+            width: 2,
+            color: color
+          },
+          // 区域填充
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: color },
+              { offset: 1, color: '#ffffff' }
+            ]),
+            opacity: 0.15
+          },
+          // 增加标准阈值区域 (markArea)
+          markArea: (standardValue !== undefined && standardDev !== undefined) ? {
+             silent: true, // 不响应鼠标事件
+             itemStyle: {
+                color: lightColor, // 使用传入的浅色
+                opacity: 0.6       // 调整透明度使其柔和
+             },
+             data: [
+               [
+                 {
+                   name: '标准范围',
+                   yAxis: standardValue - standardDev,
+                   label: {
+                      show: true,
+                      position: 'insideRight',
+                      color: color,
+                      fontSize: 9,
+                      opacity: 0.7,
+                      formatter: 'STD'
+                   }
+                 },
+                 {
+                   yAxis: standardValue + standardDev
+                 }
+               ]
+             ]
+          } : undefined
+        },
+        {
+          name: '软测量值',
+          type: 'line',
+          data: dashedData,
+          smooth: true,
+          showSymbol: true,
+          symbol: 'emptyCircle', // 空心圆点，突出预测性质
+          symbolSize: 5,
+          itemStyle: {
+            color: color,
+            borderColor: color,
+            borderWidth: 2
+          },
+          lineStyle: {
+            width: 2,
+            color: color,
+            type: 'dashed' // 明确指定为虚线
+          },
+          z: 10
+        }
+      ]
+    };
+
+    chart.setOption(option);
+
+    // Resize observer
+    const resizeObserver = new ResizeObserver(() => {
+      // 修复：ResizeObserver loop completed with undelivered notifications.
+      requestAnimationFrame(() => {
+        chart.resize();
+      });
+    });
+    resizeObserver.observe(chartRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+      instanceRef.current = null;
+    };
+  }, [dataHistory, currentSoftValue, color, lightColor, standardValue, standardDev]);
+
+  return (
+    <div className="flex-1 relative bg-white rounded border border-slate-100 overflow-hidden flex flex-col">
+       {/* 标题与当前值 */}
+       <div className="absolute top-2 left-3 right-3 flex justify-between items-start z-10 pointer-events-none">
+          <div className="text-xs font-bold text-slate-500">{title}</div>
+          <div className="flex flex-col items-end">
+             <div className="text-[10px] text-slate-400">当前软测量</div>
+             <div 
+               className="text-sm font-mono font-bold px-1.5 rounded"
+               style={{ color: color, backgroundColor: lightColor }}
+             >
+               {currentSoftValue} <span className="text-[10px] scale-90">{unit}</span>
+             </div>
+          </div>
+       </div>
+       {/* 图表容器 */}
+       <div ref={chartRef} className="w-full h-full pt-6"></div>
+    </div>
+  );
+};
+
+
 // --- 1. 独立封装的旋转刀盘组件 ---
-const RotatingRefinerDisc = ({ isRunning, speed, direction, isOverload, colorClass }: any) => {
+// 更新：大幅降低动画速度，营造厚重的工业设备感
+const RotatingRefinerDisc = ({ isRunning, direction, isOverload, colorClass, power = 150 }: any) => {
   const [rotation, setRotation] = useState(0);
   const requestRef = useRef<number>();
   
   const animate = () => {
     if (isRunning) {
       setRotation(prev => {
-        const delta = direction * (speed * 0.8); 
-        return (prev + delta) % 360;
+        // 速度逻辑优化 (v2)：更慢，更稳
+        // 功率系数: 满功率(200KW)增加 2.5度/帧
+        const baseSpeed = 0.5; 
+        const powerFactor = (power / 200) * 2.5;
+        const speed = baseSpeed + powerFactor;
+        
+        const delta = direction * speed;
+        // 修复：不再使用 % 360 取模，防止数值从 360->0 时触发 CSS 反向旋转动画
+        return prev + delta; 
       });
       requestRef.current = requestAnimationFrame(animate);
     }
@@ -77,11 +350,12 @@ const RotatingRefinerDisc = ({ isRunning, speed, direction, isOverload, colorCla
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [isRunning, speed, direction]);
+  }, [isRunning, power, direction]);
 
   return (
     <div 
-      className="relative rounded-full transition-transform duration-75"
+      // 修复：移除 transition-transform duration-75，使用 rAF 驱动更平滑，且避免 reset 时的回弹
+      className="relative rounded-full"
       style={{ transform: `rotate(${rotation}deg)` }}
     >
       <svg width="56" height="56" viewBox="0 0 100 100" className={colorClass} fill="none" stroke="currentColor" strokeWidth="2">
@@ -96,33 +370,100 @@ const RotatingRefinerDisc = ({ isRunning, speed, direction, isOverload, colorCla
   );
 };
 
-// --- 2. 模拟数据生成 ---
-const generateData = () => {
-  const power = 100 + Math.random() * 120;
-  const currentGap = (0.8 + Math.random() * 0.4);
+// --- 2. 模拟数据生成 (更新：支持平滑更新与高功率演示) ---
+// elapsedMs: 页面加载后的毫秒数，用于控制演示脚本
+const updateRefinerData = (prevData: any, isRunning: boolean, simulateOverload: boolean = false, elapsedMs: number = 0) => {
+  // 1. 处理停机状态
+  if (!isRunning) {
+    return {
+      ...prevData,
+      power: 0,
+      flow: 0,
+      inPressure: 0.00,
+      outPressure: 0.00,
+      diffPressure: 0.00,
+      temp: (prevData.temp * 0.99).toFixed(1), // 温度缓慢下降
+      valveIn: false,
+      valveOut: false,
+      gapChange: prevData.gapChange
+    };
+  }
+
+  // 2. 处理运行状态
+  let newPower = prevData.power;
+
+  if (simulateOverload) {
+      // --- 高功率演示脚本 ---
+      // 0s - 5s: 正常波动 (150-170KW)
+      // 5s - 15s: 线性爬升，目标突破 190KW
+      // 15s+: 维持高位 (192-200KW) 触发报警
+
+      if (elapsedMs < 5000) {
+          // 初始阶段：正常波动
+          newPower += (Math.random() - 0.5) * 4;
+          if (newPower < 150) newPower = 150 + Math.random() * 5;
+          if (newPower > 170) newPower = 170 - Math.random() * 5;
+      } else if (elapsedMs < 15000) {
+          // 爬升阶段：每秒约提升 3-5 KW
+          newPower += 2 + Math.random() * 2; 
+      } else {
+          // 报警阶段：维持在 192KW 以上
+          newPower += (Math.random() - 0.5) * 4;
+          if (newPower < 192) newPower = 192 + Math.random();
+          if (newPower > 200) newPower = 200;
+      }
+  } else {
+      // --- 正常运行模式 ---
+      // 在 140 - 185 之间波动，避免误触发报警
+      let deltaPower = (Math.random() - 0.5) * 3;
+      newPower += deltaPower;
+      
+      // 边界约束
+      if (newPower > 185) newPower = 185; 
+      if (newPower < 140) newPower = 140 + Math.random() * 10;
+  }
+
+  const newGap = (parseFloat(prevData.currentGap) + (Math.random() - 0.5) * 0.002).toFixed(2);
   const initialGap = 1.68;
-  const inP = 2.5 + Math.random() * 0.5;
-  const outP = inP + 0.3 + Math.random() * 0.4;
+  const inP = 2.5 + Math.random() * 0.1;
+  const outP = inP + 0.3 + Math.random() * 0.1;
   
   return {
-    power: power,
-    currentGap: currentGap.toFixed(2),
+    ...prevData,
+    power: newPower, // 保持浮点数精度供内部计算，展示时取整
+    currentGap: newGap,
     initialGap: initialGap,
-    gapChange: (initialGap - currentGap).toFixed(2), 
+    gapChange: (initialGap - parseFloat(newGap)).toFixed(2), 
     inPressure: inP.toFixed(2),
     outPressure: outP.toFixed(2),
     diffPressure: (outP - inP).toFixed(2), 
-    flow: (2800 + Math.random() * 200).toFixed(0),
-    temp: (45 + Math.random() * 5).toFixed(1),
-    valveIn: Math.random() > 0.1, 
-    valveOut: Math.random() > 0.1,
-    direction: Math.random() > 0.5 ? 1 : -1,
-    rpmSpeed: (power / 20),
+    flow: (2800 + Math.random() * 50).toFixed(0),
+    temp: (45 + Math.random() * 2).toFixed(1),
+    valveIn: true, 
+    valveOut: true,
     runTime: 132,
     lifePercent: 85, 
     installDate: "2025-09-17"
   };
 };
+
+// 初始数据生成器
+const createInitialData = () => ({
+    power: 160 + Math.random() * 20,
+    currentGap: '1.20',
+    initialGap: 1.68,
+    gapChange: '0.48',
+    inPressure: '2.60',
+    outPressure: '3.10',
+    diffPressure: '0.50',
+    flow: '2800',
+    temp: '46.5',
+    valveIn: true,
+    valveOut: true,
+    runTime: 132,
+    lifePercent: 85,
+    installDate: "2025-09-17"
+});
 
 // --- 3. 阀门组件 ---
 const ValveIcon = ({ isOpen, vertical = false, colorClass }: any) => {
@@ -343,17 +684,49 @@ const MainOutletNode = () => {
 }
 
 // --- 6. 设备卡片 (Refiner Card) ---
-const PipelineRefinerCard = ({ id, name, model, status, isFirst, isLast }: any) => {
-  const [data, setData] = useState(generateData());
+interface PipelineRefinerCardProps {
+  id: string;
+  name: string;
+  model: string;
+  status: 'RUN' | 'STOP';
+  assignedRotation?: '正转' | '反转'; // 新增：接收分配的转向
+  simulateOverload?: boolean; // 新增：是否进行高功率演示
+  isFirst?: boolean;
+  isLast?: boolean;
+  onViewTrend?: () => void; // 新增：查看趋势回调
+}
+
+const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正转', simulateOverload = false, isFirst, isLast, onViewTrend }: PipelineRefinerCardProps) => {
+  const [data, setData] = useState(createInitialData());
+  const [dynamicParams, setDynamicParams] = useState<DeviceParam[]>([]); // 新增：存储后台关联参数
+  // 记录组件挂载时间，用于控制演示脚本
+  const startTimeRef = useRef(Date.now());
   
   useEffect(() => {
-    const interval = setInterval(() => setData(generateData()), 2000);
+    // 新增：获取设备动态参数，用于数据关联
+    fetchDeviceDynamicParams(id).then(res => setDynamicParams(res.data));
+
+    // 定时器：平滑更新状态
+    const interval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - startTimeRef.current;
+        setData(prev => updateRefinerData(prev, status === 'RUN', simulateOverload, elapsed));
+    }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [id, status, simulateOverload]); // 添加 id 依赖
+
+  // 辅助：获取特定名称的参数配置
+  const getParamConfig = (paramName: string) => dynamicParams.find(p => p.name === paramName);
+  const pInConfig = getParamConfig('进口压力');
+  const pOutConfig = getParamConfig('出口压力');
 
   const isRun = status === 'RUN';
-  const isOverload = data.power > 200;
-  const isCW = data.direction === 1;
+  // 功率 > 190 红色警告
+  const isOverload = data.power > 190;
+  // 使用传入的 assignedRotation 决定动画方向
+  const isCW = assignedRotation === '正转';
+  const directionMultiplier = isCW ? 1 : -1;
+
   const mainColorClass = isOverload ? 'text-red-600' : (isRun ? (isCW ? 'text-emerald-500' : 'text-blue-500') : 'text-slate-300');
   const pipeColorClass = isRun ? 'bg-emerald-400' : 'bg-slate-200';
   const pipeBorderClass = isRun ? 'border-emerald-400' : 'border-slate-200';
@@ -398,16 +771,35 @@ const PipelineRefinerCard = ({ id, name, model, status, isFirst, isLast }: any) 
             </div>
           )}
           <div className="relative w-full h-full z-10">
+             {/* 进浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.inletY, left: 20, transform: 'translate(0, -50%)' }}>
-                <div className="absolute -top-9 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30">
+                <div className="absolute -top-9 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group cursor-help transition-all hover:border-blue-300 hover:shadow-md">
                    <div className="text-[9px] text-slate-400">P-In</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.inPressure}</div>
+                   
+                   {/* 关联信息 Tooltip */}
+                   {pInConfig && (
+                       <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 w-max max-w-[120px] bg-slate-800 text-white text-[9px] p-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left leading-tight">
+                           <div className="font-bold text-slate-300 mb-0.5">设备台账映射</div>
+                           <div><span className="text-slate-400">位号:</span> {pInConfig.source}</div>
+                           <div><span className="text-slate-400">量程:</span> {pInConfig.lowerLimit}~{pInConfig.upperLimit}</div>
+                           {/* 小三角 */}
+                           <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-800"></div>
+                       </div>
+                   )}
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveIn} vertical={true} /></div>
              </div>
+
              <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ top: CONFIG.centerY }}>
                 <div className={`relative p-1.5 rounded-full bg-white border-[4px] shadow-lg z-10 ${isOverload ? 'border-red-200 shadow-red-100' : 'border-slate-100'}`}>
-                    <RotatingRefinerDisc isRunning={isRun} speed={data.rpmSpeed} direction={data.direction} isOverload={isOverload} colorClass={mainColorClass} />
+                    <RotatingRefinerDisc 
+                        isRunning={isRun} 
+                        power={data.power} // 传入功率控制速度
+                        direction={directionMultiplier} // 传入转向控制方向
+                        isOverload={isOverload} 
+                        colorClass={mainColorClass} 
+                    />
                     {isRun && (
                       <div className={`absolute -bottom-2 -right-8 backdrop-blur border shadow-sm px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 z-20 ${directionBadgeStyle}`}>
                           {isCW ? <RotateCw size={10}/> : <RotateCcw size={10}/>}
@@ -416,10 +808,23 @@ const PipelineRefinerCard = ({ id, name, model, status, isFirst, isLast }: any) 
                     )}
                 </div>
              </div>
+
+             {/* 出浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.outletTopY, right: 30, transform: 'translate(0, -50%)' }}>
-                <div className="absolute top-4 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30">
+                <div className="absolute top-4 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group cursor-help transition-all hover:border-blue-300 hover:shadow-md">
                    <div className="text-[9px] text-slate-400">P-Out</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.outPressure}</div>
+
+                   {/* 关联信息 Tooltip */}
+                   {pOutConfig && (
+                       <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 w-max max-w-[120px] bg-slate-800 text-white text-[9px] p-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left leading-tight">
+                           <div className="font-bold text-slate-300 mb-0.5">设备台账映射</div>
+                           <div><span className="text-slate-400">位号:</span> {pOutConfig.source}</div>
+                           <div><span className="text-slate-400">量程:</span> {pOutConfig.lowerLimit}~{pOutConfig.upperLimit}</div>
+                           {/* 小三角 */}
+                           <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-slate-800"></div>
+                       </div>
+                   )}
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveOut} /></div>
              </div>
@@ -432,7 +837,7 @@ const PipelineRefinerCard = ({ id, name, model, status, isFirst, isLast }: any) 
               <div className="flex flex-col">
                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1"><Zap size={10} className={isOverload ? 'text-red-500' : 'text-blue-500'}/> 实时功率</span>
                  <span className={`font-mono font-bold text-2xl ${isOverload ? 'text-red-600' : 'text-slate-800'}`}>
-                   {parseInt(data.power as any)} <span className="text-xs font-normal text-slate-400">KW</span>
+                   {Math.round(data.power)} <span className="text-xs font-normal text-slate-400">KW</span>
                  </span>
               </div>
               <div className="flex flex-col items-end">
@@ -494,8 +899,18 @@ const PipelineRefinerCard = ({ id, name, model, status, isFirst, isLast }: any) 
                 <span className="text-[9px] text-slate-400">当前间隙</span>
                 <span className="font-mono font-bold text-xs text-slate-700">{data.currentGap}</span>
              </div>
-             <div className="flex flex-col gap-1">
-                <span className="text-[9px] text-slate-400">累计变化</span>
+             <div className="flex flex-col gap-1 relative group/item">
+                <div className="flex items-center justify-center gap-1">
+                    <span className="text-[9px] text-slate-400">累计变化</span>
+                    {/* 新增：趋势按钮 (外科手术式植入，不影响周围布局) */}
+                    <button 
+                       onClick={(e) => { e.stopPropagation(); onViewTrend && onViewTrend(); }}
+                       className="text-blue-500 bg-blue-50 hover:bg-blue-100 hover:text-blue-600 p-0.5 rounded transition-colors shadow-sm cursor-pointer"
+                       title="查看趋势"
+                    >
+                       <TrendingUp size={10} />
+                    </button>
+                </div>
                 <span className="font-mono font-bold text-xs text-slate-600 flex justify-center items-center">
                    <ArrowDown size={10} className="text-slate-400"/> {data.gapChange}
                 </span>
@@ -554,7 +969,7 @@ const FunctionShortcuts = () => {
 };
 
 // --- 9. 工艺标准卡片 ---
-const CraftStandardCard = () => {
+const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
   const [standard, setStandard] = useState<ProcessIndicator | null>(null);
 
   useEffect(() => {
@@ -572,7 +987,12 @@ const CraftStandardCard = () => {
           <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
             <FileText size={16} className="text-purple-600"/> 工艺标准
           </h2>
-          <Edit3 size={14} className="text-slate-400 cursor-pointer hover:text-blue-500"/>
+          {/* 编辑按钮：点击触发下发弹窗 */}
+          <Edit3 
+            size={14} 
+            className="text-slate-400 cursor-pointer hover:text-blue-500 transition-colors"
+            onClick={onEdit} 
+          />
       </div>
       <div className="p-3 flex flex-col gap-3">
           <div className="flex justify-between items-center">
@@ -637,15 +1057,13 @@ const CraftStandardCard = () => {
   );
 };
 
-// --- 10. ProductionExceptionList ---
-const ProductionExceptionList = () => {
-  const exceptions = [
-    { id: 1, date: '2025-09-27', shift: '甲', content: '在线异常，清洗设备', duration: '11.37h' },
-    { id: 2, date: '2025-07-21', shift: '乙', content: '更换精浆前池提浆泵叶片', duration: '6.34h' },
-    { id: 3, date: '2025-04-02', shift: '丁', content: '4#箱浆机卡浆', duration: '3.18h' },
-    { id: 4, date: '2025-03-20', shift: '丁', content: '提浆泵加装配件', duration: '0.58h' },
-    { id: 5, date: '2025-03-18', shift: '丙', content: '处理2#送浆系统流量烟', duration: '1.2h' },
-  ];
+// --- 10. ProductionExceptionList (Restored & Updated) ---
+const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => {
+  const [exceptions, setExceptions] = useState<ProductionExceptionRecord[]>([]);
+
+  useEffect(() => {
+    fetchProductionExceptions().then(res => setExceptions(res.data));
+  }, []);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
@@ -653,20 +1071,111 @@ const ProductionExceptionList = () => {
           <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
              <AlertTriangle size={16} className="text-red-500"/> 生产异常
           </h3>
-          <button className="text-[10px] text-slate-400 hover:text-blue-500 transition-colors">查看更多 &gt;</button>
+          <button 
+            className="text-[10px] text-slate-400 hover:text-blue-500 transition-colors cursor-pointer"
+            onClick={onViewMore}
+          >
+            查看更多 &gt;
+          </button>
        </div>
        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {exceptions.map(ex => (
              <div key={ex.id} className="bg-white border border-slate-100 rounded-lg p-3 text-xs hover:border-red-200 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-2">
                 <div className="flex justify-between items-center text-slate-400">
                    <span className="font-mono">{ex.date}</span>
-                   <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">{ex.shift}班</span>
+                   <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">{ex.team}班</span>
                 </div>
                 <div className="font-bold text-slate-700 text-sm leading-tight">
-                   {ex.content}
+                   {ex.description}
                 </div>
                 <div className="text-slate-400 flex items-center gap-1">
-                   <Clock size={12}/> 持续时间: <span className="font-mono font-bold text-slate-600">{ex.duration}</span>
+                   <Clock size={12}/> 持续时间: <span className="font-mono font-bold text-slate-600">{ex.duration}h</span>
+                </div>
+             </div>
+          ))}
+          {exceptions.length === 0 && (
+             <div className="text-center text-slate-400 py-4 text-xs">暂无异常记录</div>
+          )}
+       </div>
+    </div>
+  );
+};
+
+// --- 11. ProcessAlerts (Restored Exactly as requested) ---
+const ProcessAlerts = () => {
+  // Mock 数据：基于 ProcessExceptionRecord 逻辑杜撰
+  const alerts = [
+    {
+      startDate: '09-27', startTime: '10:15', endTime: '10:20',
+      startVal: 55.2, endVal: 54.0,
+      isManual: true, isAuto: false, 
+      exceptionType: '叩解度异常'
+    },
+    {
+      startDate: '09-27', startTime: '09:30', endTime: '09:42',
+      startVal: 0.76, endVal: 0.81,
+      isManual: false, isAuto: true,
+      exceptionType: '纤维长度异常'
+    },
+    {
+      startDate: '09-27', startTime: '08:12', endTime: '08:18',
+      startVal: 2.65, endVal: 2.80,
+      isManual: true, isAuto: false,
+      exceptionType: '纤维长度异常'
+    },
+    {
+      startDate: '09-26', startTime: '23:50', endTime: '00:05',
+      startVal: 52.8, endVal: 54.5,
+      isManual: false, isAuto: true,
+      exceptionType: '叩解度异常'
+    }
+  ];
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full p-3">
+       <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
+          <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
+             <AlertCircle size={14} className="text-red-500" /> 工艺异常
+          </span>
+       </div>
+       <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+          {alerts.map((item, i) => (
+             <div key={i} className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100 relative group hover:shadow-sm transition-all">
+                <div className="flex flex-col gap-1.5 flex-1">
+                   {/* Row 1: Time + Exception Type Badge */}
+                   <div className="flex items-center justify-between mr-2">
+                      <div className="flex items-center text-[10px] text-slate-400 gap-2">
+                         <span>{item.startDate} {item.startTime}</span>
+                         <span className="text-slate-300">→</span>
+                         <span>{item.endTime}</span>
+                      </div>
+                      <span className={`text-[9px] px-1.5 rounded border scale-90 origin-right ${
+                        item.exceptionType === '叩解度异常'
+                        ? 'bg-purple-50 text-purple-600 border-purple-100' // Purple for Freeness
+                        : 'bg-orange-50 text-orange-600 border-orange-100' // Orange for Fiber
+                      }`}>
+                         {item.exceptionType}
+                      </span>
+                   </div>
+
+                   {/* Row 2: Values */}
+                   <div className="flex items-center gap-3">
+                      <span className="font-mono font-bold text-slate-700 text-sm">{item.startVal}</span>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500">
+                        <ArrowRight size={10} strokeWidth={3} />
+                      </div>
+                      <span className="font-mono font-bold text-slate-700 text-sm">{item.endVal}</span>
+                   </div>
+                </div>
+                
+                {/* Right side: User/System Icons */}
+                <div className="flex flex-col gap-1 pl-2 border-l border-slate-200">
+                   <div className={`p-1 rounded ${item.isManual ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
+                      <User size={12} />
+                   </div>
+                   <div className={`p-1 rounded ${item.isAuto ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
+                      <RefreshCw size={12} /> 
+                   </div>
                 </div>
              </div>
           ))}
@@ -675,101 +1184,179 @@ const ProductionExceptionList = () => {
   );
 };
 
-// --- 11. ProcessAlerts (New) ---
-const ProcessAlerts = () => {
-  const alerts = [
-    { id: 1, time: '10:23', device: '1# 精浆', message: '功率瞬时偏高', level: 'warning' },
-    { id: 2, time: '09:45', device: '3# 精浆', message: '流量轻微波动', level: 'info' },
-    { id: 3, time: '08:12', device: '2# 精浆', message: '进浆压力低报警', level: 'error' },
-    { id: 4, time: '06:30', device: '4# 精浆', message: '停机维护中', level: 'info' },
-  ];
+// --- 12. BladeHistoryList (Restored Exactly as requested) ---
+const BladeHistoryList = ({ onViewMore }: { onViewMore: () => void }) => {
+  const [logs, setLogs] = useState<KnifeChangeRecord[]>([]);
+
+  useEffect(() => {
+    // 获取最近5条换刀记录
+    fetchLatestKnifeChanges().then(res => setLogs(res.data));
+  }, []);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-      <div className="bg-slate-50 p-3 border-b border-slate-100 flex justify-between items-center shrink-0">
-         <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
-            <Bell size={16} className="text-orange-500"/> 工艺报警
-         </h3>
+    <div className="flex flex-col h-full">
+      <div className="flex justify-between items-center mb-3 px-1">
+         <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+           <History size={16} className="text-blue-500"/> 换刀记录
+         </h4>
+         <button 
+           className="text-[10px] text-slate-400 hover:text-blue-500 cursor-pointer"
+           onClick={onViewMore}
+         >
+           查看更多 &gt;
+         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
-         {alerts.map(alert => (
-            <div key={alert.id} className="bg-white border border-slate-100 rounded-lg p-2 flex items-start gap-2 hover:shadow-sm transition-all text-xs cursor-pointer">
-               <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${
-                   alert.level === 'error' ? 'bg-red-500' : 
-                   alert.level === 'warning' ? 'bg-orange-500' : 'bg-blue-400'
-               }`}></div>
-               <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                     <span className="font-bold text-slate-700">{alert.device}</span>
-                     <span className="text-[10px] text-slate-400 font-mono">{alert.time}</span>
+      <div className="grid grid-cols-[90px_1fr_1fr_1fr_1fr_1fr] gap-1 px-3 mb-2 text-[10px] font-bold text-slate-400 text-center">
+         <div className="text-left">时间</div>
+         <div>1#</div>
+         <div>2#</div>
+         <div>3#</div>
+         <div>4#</div>
+         <div>5#</div>
+      </div>
+      <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
+        {logs.map((log) => (
+          <div key={log.id} className="grid grid-cols-[90px_1fr_1fr_1fr_1fr_1fr] gap-1 items-center bg-white rounded border border-slate-100 py-2 px-3 text-[10px] hover:border-blue-300 transition-colors cursor-pointer group">
+             <div className="flex flex-col text-left">
+                <span className="font-bold text-slate-600 group-hover:text-blue-600">{log.date.slice(5)}</span> {/* 仅展示 MM-DD */}
+                <span className="text-slate-400 scale-90 origin-left">{log.time}</span>
+             </div>
+             {[1,2,3,4,5].map(id => {
+                const isChanged = log.changedDeviceIds.includes(id);
+                // 映射对应的刀盘型号字段名
+                const modelKey = `device${id}_knife` as keyof KnifeChangeRecord;
+                const knifeModel = log[modelKey] as string;
+
+                return (
+                  <div key={id} className={`flex flex-col items-center justify-center rounded py-1.5 ${isChanged ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'text-slate-400'}`}>
+                     {isChanged ? (
+                        <div className="flex items-center gap-0.5">
+                           <span className="font-bold text-xs">{knifeModel}</span>
+                           <ArrowUp size={10} className="text-orange-400 animate-bounce"/> 
+                        </div>
+                     ) : (
+                        <span className="scale-90 opacity-80">{knifeModel}</span>
+                     )}
                   </div>
-                  <div className="text-slate-500 leading-tight">{alert.message}</div>
-               </div>
-            </div>
-         ))}
-      </div>
-    </div>
-  );
-};
-
-// --- 12. BladeHistoryList (New) ---
-const BladeHistoryList = () => {
-  const history = [
-    { id: 1, date: '09-20 14:00', device: '1# 精浆', action: '换刀 (切)', operator: '王建国' },
-    { id: 2, date: '09-15 09:30', device: '3# 精浆', action: '换刀 (磨)', operator: '李明' },
-    { id: 3, date: '09-10 16:45', device: '2# 精浆', action: '调整间隙', operator: '张伟' },
-    { id: 4, date: '09-08 08:20', device: '5# 精浆', action: '例行检查', operator: '赵强' },
-    { id: 5, date: '09-05 11:10', device: '1# 精浆', action: '紧固螺栓', operator: '王建国' },
-  ];
-
-  return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex justify-between items-center mb-3 shrink-0">
-         <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-            <RefreshCw className="text-blue-500" size={16}/> 换刀/调整记录
-         </h3>
-         <button className="text-[10px] text-blue-500 hover:underline">查看全部</button>
-      </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 rounded-lg border border-slate-100 p-0">
-         <table className="w-full text-xs text-left">
-            <thead className="text-slate-400 bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
-               <tr>
-                  <th className="px-3 py-2 font-medium">时间</th>
-                  <th className="px-2 py-2 font-medium">设备</th>
-                  <th className="px-2 py-2 font-medium">动作</th>
-                  <th className="px-3 py-2 font-medium text-right">操作人</th>
-               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-               {history.map(item => (
-                  <tr key={item.id} className="hover:bg-white transition-colors bg-white/50">
-                     <td className="px-3 py-2 text-slate-500 font-mono text-[10px]">{item.date}</td>
-                     <td className="px-2 py-2 text-slate-700 font-bold">{item.device}</td>
-                     <td className="px-2 py-2 text-slate-600">{item.action}</td>
-                     <td className="px-3 py-2 text-slate-500 text-right">{item.operator}</td>
-                  </tr>
-               ))}
-            </tbody>
-         </table>
+                );
+             })}
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
 export const MonitorDashboard = () => {
+  // 状态：控制生产异常详情弹窗
+  const [isExceptionModalOpen, setIsExceptionModalOpen] = useState(false);
+  // 状态：控制工艺指标下发弹窗
+  const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
+  // 状态：控制换刀记录弹窗
+  const [isKnifeChangeModalOpen, setIsKnifeChangeModalOpen] = useState(false);
+  
+  // 新增：父组件获取工艺配置，以同步设备转向
+  const [deviceConfigs, setDeviceConfigs] = useState<ProcessIndicatorDeviceConfig[]>([]);
+
+  // 新增：从后台管理数据源同步当前刀盘配置 (动态)
+  const [currentKnives, setCurrentKnives] = useState<{ [key: string]: string }>({
+    '1': 'Loading...',
+    '2': 'Loading...',
+    '3': 'Loading...',
+    '4': 'Loading...',
+    '5': 'Loading...'
+  });
+
+  // 新增：控制间隙趋势弹窗
+  const [gapTrendData, setGapTrendData] = useState<{name: string, model: string} | null>(null);
+
+  // 场景控制：随机全停机 与 高功率演示
+  const [scenario, setScenario] = useState<{ allStopped: boolean; overloadTargetId: string | null }>({
+    allStopped: false,
+    overloadTargetId: null
+  });
+
+  // ... (Existing useEffects remain unchanged) ...
+  useEffect(() => {
+    // 初始加载工艺配置
+    fetchCurrentProcessIndicator().then(res => {
+      setDeviceConfigs(res.data.deviceConfigs);
+    });
+
+    // 关键修复：获取最新的换刀记录，以同步刀盘型号
+    fetchLatestKnifeChanges(1).then(res => {
+      if (res.data && res.data.length > 0) {
+        const latest = res.data[0];
+        setCurrentKnives({
+          '1': latest.device1_knife,
+          '2': latest.device2_knife,
+          '3': latest.device3_knife,
+          '4': latest.device4_knife,
+          '5': latest.device5_knife,
+        });
+      }
+    });
+
+    // 随机生成演示场景：
+    // 20% 概率全停机
+    const isAllStopped = Math.random() < 0.2;
+    let targetId = null;
+
+    if (!isAllStopped) {
+       // 如果非全停机，随机选择一台常开设备 (1, 2, 3, 5) 进行高功率演示
+       // 新增：将 4# 也加入候选，因为它默认是 RUN 了
+       const candidates = ['1', '2', '3', '4', '5'];
+       const idx = Math.floor(Math.random() * candidates.length);
+       targetId = candidates[idx];
+    }
+    
+    setScenario({ allStopped: isAllStopped, overloadTargetId: targetId });
+  }, []);
+
+  // 辅助函数：获取指定设备的转向配置，默认正转
+  const getDeviceRotation = (id: string) => {
+    const config = deviceConfigs.find(c => c.deviceId === id);
+    return config?.rotation || '正转';
+  };
+
+  // 辅助函数：根据场景计算最终状态
+  const getDeviceStatus = (defaultStatus: 'RUN' | 'STOP') => {
+      if (scenario.allStopped) return 'STOP';
+      return defaultStatus;
+  };
+
+  // Mock 数据：过去 30 分钟 (5分钟间隔，7个点)
+  const freenessData = [
+    { time: '10:00', value: 53.5 },
+    { time: '10:05', value: 54.2 },
+    { time: '10:10', value: 55.0 },
+    { time: '10:15', value: 54.8 },
+    { time: '10:20', value: 55.3 },
+    { time: '10:25', value: 55.6 }, // T-5 (Last Measured)
+  ];
+  const currentFreenessSoft = 55.66; // T-0 (Soft Sensor)
+
+  const fiberData = [
+    { time: '10:00', value: 0.78 },
+    { time: '10:05', value: 0.79 },
+    { time: '10:10', value: 0.81 },
+    { time: '10:15', value: 0.80 },
+    { time: '10:20', value: 0.82 },
+    { time: '10:25', value: 0.81 }, // T-5
+  ];
+  const currentFiberSoft = 0.82; // T-0
+
   return (
     <div className="h-full w-full flex flex-col font-sans text-slate-800">
-      
-      {/* 移除顶部的 "智慧磨浆平台" Header，因为外部 ImmersiveLayout 已经提供了 Nav */}
       
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* 左侧边栏 - 20% */}
         <div className="col-span-2 flex flex-col gap-4 overflow-hidden h-full">
            <FunctionShortcuts />
            <ShiftInfoCard />
-           <CraftStandardCard />
+           <CraftStandardCard onEdit={() => setIsIndicatorModalOpen(true)} />
            <div className="flex-1 min-h-[200px] overflow-hidden">
-              <ProductionExceptionList />
+              <ProductionExceptionList onViewMore={() => setIsExceptionModalOpen(true)} />
            </div>
         </div>
 
@@ -786,11 +1373,48 @@ export const MonitorDashboard = () => {
              <div className="flex gap-2 items-center">
                  <MainInletNode />
                  <div className="flex-1 grid grid-cols-5 gap-2">
-                    <PipelineRefinerCard id="1" name="精浆" model="JQJC-01-XCI" status="RUN" isFirst={true} />
-                    <PipelineRefinerCard id="2" name="精浆" model="TC2-PRO" status="RUN" />
-                    <PipelineRefinerCard id="3" name="精浆" model="TC-STD" status="RUN" />
-                    <PipelineRefinerCard id="4" name="精浆" model="TM-HVY" status="STOP" />
-                    <PipelineRefinerCard id="5" name="精浆" model="JQJC-05" status="RUN" isLast={true} />
+                    <PipelineRefinerCard 
+                        id="1" name="精浆" 
+                        model={currentKnives['1']} // 动态绑定
+                        status={getDeviceStatus('RUN')} 
+                        assignedRotation={getDeviceRotation('1')}
+                        simulateOverload={scenario.overloadTargetId === '1'}
+                        isFirst={true}
+                        onViewTrend={() => setGapTrendData({ name: '1# 精浆', model: currentKnives['1'] })}
+                    />
+                    <PipelineRefinerCard 
+                        id="2" name="精浆" 
+                        model={currentKnives['2']} // 动态绑定
+                        status={getDeviceStatus('RUN')} 
+                        assignedRotation={getDeviceRotation('2')}
+                        simulateOverload={scenario.overloadTargetId === '2'}
+                        onViewTrend={() => setGapTrendData({ name: '2# 精浆', model: currentKnives['2'] })}
+                    />
+                    <PipelineRefinerCard 
+                        id="3" name="精浆" 
+                        model={currentKnives['3']} // 动态绑定
+                        status={getDeviceStatus('RUN')} 
+                        assignedRotation={getDeviceRotation('3')}
+                        simulateOverload={scenario.overloadTargetId === '3'}
+                        onViewTrend={() => setGapTrendData({ name: '3# 精浆', model: currentKnives['3'] })}
+                    />
+                    <PipelineRefinerCard 
+                        id="4" name="精浆" 
+                        model={currentKnives['4']} // 动态绑定
+                        status={getDeviceStatus('RUN')} 
+                        assignedRotation={getDeviceRotation('4')}
+                        simulateOverload={scenario.overloadTargetId === '4'}
+                        onViewTrend={() => setGapTrendData({ name: '4# 精浆', model: currentKnives['4'] })}
+                    />
+                    <PipelineRefinerCard 
+                        id="5" name="精浆" 
+                        model={currentKnives['5']} // 动态绑定
+                        status={getDeviceStatus('RUN')} 
+                        assignedRotation={getDeviceRotation('5')}
+                        simulateOverload={scenario.overloadTargetId === '5'}
+                        isLast={true}
+                        onViewTrend={() => setGapTrendData({ name: '5# 精浆', model: currentKnives['5'] })}
+                    />
                  </div>
                  <MainOutletNode />
              </div>
@@ -798,7 +1422,7 @@ export const MonitorDashboard = () => {
 
           {/* 下半部分：趋势与记录 */}
           <div className="flex gap-4 h-[280px] flex-none">
-             {/* 趋势图 */}
+             {/* 趋势图 (独立卡片) */}
              <section className="flex-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
@@ -807,45 +1431,66 @@ export const MonitorDashboard = () => {
                    <div className="flex gap-4 text-xs">
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 叩解度</div>
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-100"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> 纤维长度</div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200"><span className="w-3 h-0.5 border-t-2 border-dotted border-slate-500"></span> 软测量值</div>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200"><span className="w-3 h-0.5 border-t-2 border-dotted border-slate-400"></span> 软测量 (预测)</div>
                    </div>
                 </div>
                 <div className="flex-1 flex flex-col gap-3 min-h-0">
-                   <div className="flex-1 relative bg-white rounded border border-slate-100 overflow-hidden group">
-                      <div className="absolute top-1 left-2 text-[10px] font-bold text-slate-400 z-10">叩解度</div>
-                      <div className="absolute top-1 right-2 text-[10px] font-mono text-purple-600 bg-purple-50 px-1 rounded z-10">当前软测量值: 55.66</div>
-                      <svg className="w-full h-full p-2" viewBox="0 0 100 100" preserveAspectRatio="none">
-                         <rect x="0" y="40" width="100" height="40" fill="#f3e8ff" className="opacity-50"/>
-                         <path d="M0,60 Q20,50 40,54 T80,50" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round"/>
-                         <path d="M80,50 Q90,45 100,52" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4" className="opacity-60"/>
-                         <line x1="0" y1="50%" x2="100%" y2="50%" stroke="#e2e8f0" strokeWidth="0.5"/>
-                      </svg>
-                   </div>
-                   <div className="flex-1 relative bg-white rounded border border-slate-100 overflow-hidden group">
-                      <div className="absolute top-1 left-2 text-[10px] font-bold text-slate-400 z-10">纤维长度</div>
-                      <div className="absolute top-1 right-2 text-[10px] font-mono text-orange-600 bg-orange-50 px-1 rounded z-10">当前软测量值: 0.82</div>
-                      <svg className="w-full h-full p-2" viewBox="0 0 100 100" preserveAspectRatio="none">
-                         <rect x="0" y="25" width="100" height="50" fill="#ffedd5" className="opacity-50"/>
-                         <path d="M0,45 Q20,60 40,30 T80,40" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round"/>
-                         <path d="M80,40 Q90,35 100,42" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4" className="opacity-60"/>
-                         <line x1="0" y1="50%" x2="100%" y2="50%" stroke="#e2e8f0" strokeWidth="0.5"/>
-                      </svg>
-                   </div>
+                   {/* 叩解度图表 */}
+                   <TrendChart 
+                      title="叩解度" 
+                      unit="°SR" 
+                      color="#a855f7" 
+                      lightColor="#f3e8ff"
+                      currentSoftValue={currentFreenessSoft} 
+                      dataHistory={freenessData} 
+                      standardValue={54}
+                      standardDev={1}
+                   />
+                   {/* 纤维长度图表 */}
+                   <TrendChart 
+                      title="纤维长度" 
+                      unit="mm" 
+                      color="#f97316" 
+                      lightColor="#ffedd5"
+                      currentSoftValue={currentFiberSoft} 
+                      dataHistory={fiberData} 
+                      standardValue={0.80}
+                      standardDev={0.05}
+                   />
                 </div>
              </section>
              
-             {/* 异常列表 */}
-             <div className="w-[260px] shrink-0">
+             {/* 异常列表 (独立卡片) */}
+             <div className="w-[280px] shrink-0">
                 <ProcessAlerts />
              </div>
              
-             {/* 换刀记录 */}
+             {/* 换刀记录 (独立卡片) */}
              <section className="w-[450px] bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-                <BladeHistoryList />
+                <BladeHistoryList onViewMore={() => setIsKnifeChangeModalOpen(true)} />
              </section>
           </div>
         </div>
       </div>
+
+      {/* 弹窗层 */}
+      {isExceptionModalOpen && (
+        <ProductionExceptionModal onClose={() => setIsExceptionModalOpen(false)} />
+      )}
+      {isIndicatorModalOpen && (
+        <ProcessIndicatorModal onClose={() => setIsIndicatorModalOpen(false)} />
+      )}
+      {isKnifeChangeModalOpen && (
+        <KnifeChangeRecordModal onClose={() => setIsKnifeChangeModalOpen(false)} />
+      )}
+      {/* 新增：间隙趋势弹窗 */}
+      {gapTrendData && (
+        <GapTrendModal 
+          deviceName={gapTrendData.name}
+          knifeModel={gapTrendData.model}
+          onClose={() => setGapTrendData(null)} 
+        />
+      )}
     </div>
   );
 };
