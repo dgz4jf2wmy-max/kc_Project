@@ -41,13 +41,14 @@ import {
 } from 'lucide-react';
 import { fetchCurrentProcessIndicator, fetchProductionExceptions } from '../../services/monitorMockService'; // 引入接口
 import { fetchLatestKnifeChanges } from '../../services/knifeChangeService'; // 引入换刀服务
-import { fetchDeviceDynamicParams } from '../../services/deviceService'; // 引入设备服务，用于关联台账
-import { ProcessIndicator, ProductionExceptionRecord, KnifeChangeRecord, ProcessIndicatorDeviceConfig, DeviceParam } from '../../types'; // 引入实体类
+import { ProcessIndicator, ProductionExceptionRecord, KnifeChangeRecord, ProcessIndicatorDeviceConfig } from '../../types'; // 引入实体类
 import { ProductionExceptionModal } from './ProductionExceptionModal'; // 引入异常弹窗
 import { ProcessIndicatorModal } from './ProcessIndicatorModal'; // 引入指标下发弹窗
 import { KnifeChangeRecordModal } from './KnifeChangeRecordModal'; // 引入换刀记录弹窗
 import { GapTrendModal } from './GapTrendModal'; // 引入间隙趋势弹窗
 import { MaterialFeedingModal } from './MaterialFeedingModal'; // 引入物料投料弹窗
+import { PasswordVerificationModal } from './PasswordVerificationModal'; // 新增：引入口令验证弹窗
+import { KnifeSelectionModal } from './KnifeSelectionModal'; // 新增：引入刀盘选择弹窗
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -695,18 +696,15 @@ interface PipelineRefinerCardProps {
   isFirst?: boolean;
   isLast?: boolean;
   onViewTrend?: () => void; // 新增：查看趋势回调
+  onKnifeClick?: () => void; // 新增：换刀操作回调
 }
 
-const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正转', simulateOverload = false, isFirst, isLast, onViewTrend }: PipelineRefinerCardProps) => {
+const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正转', simulateOverload = false, isFirst, isLast, onViewTrend, onKnifeClick }: PipelineRefinerCardProps) => {
   const [data, setData] = useState(createInitialData());
-  const [dynamicParams, setDynamicParams] = useState<DeviceParam[]>([]); // 新增：存储后台关联参数
   // 记录组件挂载时间，用于控制演示脚本
   const startTimeRef = useRef(Date.now());
   
   useEffect(() => {
-    // 新增：获取设备动态参数，用于数据关联
-    fetchDeviceDynamicParams(id).then(res => setDynamicParams(res.data));
-
     // 定时器：平滑更新状态
     const interval = setInterval(() => {
         const now = Date.now();
@@ -715,11 +713,6 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
     }, 1000);
     return () => clearInterval(interval);
   }, [id, status, simulateOverload]); // 添加 id 依赖
-
-  // 辅助：获取特定名称的参数配置
-  const getParamConfig = (paramName: string) => dynamicParams.find(p => p.name === paramName);
-  const pInConfig = getParamConfig('进口压力');
-  const pOutConfig = getParamConfig('出口压力');
 
   const isRun = status === 'RUN';
   // 功率 > 190 红色警告
@@ -774,26 +767,20 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
           <div className="relative w-full h-full z-10">
              {/* 进浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.inletY, left: 20, transform: 'translate(0, -50%)' }}>
-                <div className="absolute -top-9 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group cursor-help transition-all hover:border-blue-300 hover:shadow-md">
+                <div className="absolute -top-9 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group transition-all hover:border-blue-300 hover:shadow-md">
                    <div className="text-[9px] text-slate-400">P-In</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.inPressure}</div>
-                   
-                   {/* 关联信息 Tooltip */}
-                   {pInConfig && (
-                       <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 w-max max-w-[120px] bg-slate-800 text-white text-[9px] p-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left leading-tight">
-                           <div className="font-bold text-slate-300 mb-0.5">设备台账映射</div>
-                           <div><span className="text-slate-400">位号:</span> {pInConfig.source}</div>
-                           <div><span className="text-slate-400">量程:</span> {pInConfig.lowerLimit}~{pInConfig.upperLimit}</div>
-                           {/* 小三角 */}
-                           <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-800"></div>
-                       </div>
-                   )}
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveIn} vertical={true} /></div>
              </div>
 
              <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ top: CONFIG.centerY }}>
-                <div className={`relative p-1.5 rounded-full bg-white border-[4px] shadow-lg z-10 ${isOverload ? 'border-red-200 shadow-red-100' : 'border-slate-100'}`}>
+                {/* 增加换刀点击事件 */}
+                <div 
+                  onClick={onKnifeClick}
+                  className={`relative p-1.5 rounded-full bg-white border-[4px] shadow-lg z-10 cursor-pointer hover:scale-105 hover:ring-2 hover:ring-blue-300 transition-all active:scale-95 ${isOverload ? 'border-red-200 shadow-red-100' : 'border-slate-100'}`}
+                  title="点击进行换刀操作"
+                >
                     <RotatingRefinerDisc 
                         isRunning={isRun} 
                         power={data.power} // 传入功率控制速度
@@ -812,20 +799,9 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
 
              {/* 出浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.outletTopY, right: 30, transform: 'translate(0, -50%)' }}>
-                <div className="absolute top-4 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group cursor-help transition-all hover:border-blue-300 hover:shadow-md">
+                <div className="absolute top-4 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group transition-all hover:border-blue-300 hover:shadow-md">
                    <div className="text-[9px] text-slate-400">P-Out</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.outPressure}</div>
-
-                   {/* 关联信息 Tooltip */}
-                   {pOutConfig && (
-                       <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 w-max max-w-[120px] bg-slate-800 text-white text-[9px] p-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-left leading-tight">
-                           <div className="font-bold text-slate-300 mb-0.5">设备台账映射</div>
-                           <div><span className="text-slate-400">位号:</span> {pOutConfig.source}</div>
-                           <div><span className="text-slate-400">量程:</span> {pOutConfig.lowerLimit}~{pOutConfig.upperLimit}</div>
-                           {/* 小三角 */}
-                           <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-slate-800"></div>
-                       </div>
-                   )}
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveOut} /></div>
              </div>
@@ -972,8 +948,6 @@ const FunctionShortcuts = ({ onOpenFeed }: { onOpenFeed: () => void }) => {
   );
 };
 
-// ... (Rest of the component code remains unchanged until MonitorDashboard)
-
 // --- 9. 工艺标准卡片 ---
 const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
   const [standard, setStandard] = useState<ProcessIndicator | null>(null);
@@ -1063,9 +1037,7 @@ const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
   );
 };
 
-// ... (Other components remain unchanged)
-
-// --- 10. ProductionExceptionList (Restored & Updated) ---
+// --- 10. ProductionExceptionList ---
 const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => {
   const [exceptions, setExceptions] = useState<ProductionExceptionRecord[]>([]);
 
@@ -1109,11 +1081,8 @@ const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => 
   );
 };
 
-// ... (ProcessAlerts and BladeHistoryList remain unchanged)
-
-// --- 11. ProcessAlerts (Restored Exactly as requested) ---
+// --- 11. ProcessAlerts ---
 const ProcessAlerts = () => {
-  // Mock 数据：基于 ProcessExceptionRecord 逻辑杜撰
   const alerts = [
     {
       startDate: '09-27', startTime: '10:15', endTime: '10:20',
@@ -1152,7 +1121,6 @@ const ProcessAlerts = () => {
           {alerts.map((item, i) => (
              <div key={i} className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100 relative group hover:shadow-sm transition-all">
                 <div className="flex flex-col gap-1.5 flex-1">
-                   {/* Row 1: Time + Exception Type Badge */}
                    <div className="flex items-center justify-between mr-2">
                       <div className="flex items-center text-[10px] text-slate-400 gap-2">
                          <span>{item.startDate} {item.startTime}</span>
@@ -1161,14 +1129,13 @@ const ProcessAlerts = () => {
                       </div>
                       <span className={`text-[9px] px-1.5 rounded border scale-90 origin-right ${
                         item.exceptionType === '叩解度异常'
-                        ? 'bg-purple-50 text-purple-600 border-purple-100' // Purple for Freeness
-                        : 'bg-orange-50 text-orange-600 border-orange-100' // Orange for Fiber
+                        ? 'bg-purple-50 text-purple-600 border-purple-100'
+                        : 'bg-orange-50 text-orange-600 border-orange-100'
                       }`}>
                          {item.exceptionType}
                       </span>
                    </div>
 
-                   {/* Row 2: Values */}
                    <div className="flex items-center gap-3">
                       <span className="font-mono font-bold text-slate-700 text-sm">{item.startVal}</span>
                       <div className="flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500">
@@ -1178,7 +1145,6 @@ const ProcessAlerts = () => {
                    </div>
                 </div>
                 
-                {/* Right side: User/System Icons */}
                 <div className="flex flex-col gap-1 pl-2 border-l border-slate-200">
                    <div className={`p-1 rounded ${item.isManual ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
                       <User size={12} />
@@ -1194,12 +1160,11 @@ const ProcessAlerts = () => {
   );
 };
 
-// --- 12. BladeHistoryList (Restored Exactly as requested) ---
+// --- 12. BladeHistoryList ---
 const BladeHistoryList = ({ onViewMore }: { onViewMore: () => void }) => {
   const [logs, setLogs] = useState<KnifeChangeRecord[]>([]);
 
   useEffect(() => {
-    // 获取最近5条换刀记录
     fetchLatestKnifeChanges().then(res => setLogs(res.data));
   }, []);
 
@@ -1267,6 +1232,11 @@ export const MonitorDashboard = () => {
   // 状态：控制物料投料弹窗 (新增)
   const [isFeedingModalOpen, setIsFeedingModalOpen] = useState(false);
   
+  // 新增：换刀操作相关状态
+  const [targetDeviceForChange, setTargetDeviceForChange] = useState<string | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isKnifeSelectionModalOpen, setIsKnifeSelectionModalOpen] = useState(false);
+
   // 新增：父组件获取工艺配置，以同步设备转向
   const [deviceConfigs, setDeviceConfigs] = useState<ProcessIndicatorDeviceConfig[]>([]);
 
@@ -1324,6 +1294,29 @@ export const MonitorDashboard = () => {
     
     setScenario({ allStopped: isAllStopped, overloadTargetId: targetId });
   }, []);
+
+  // 换刀触发逻辑：第一步，点击触发，打开口令验证
+  const initiateKnifeChange = (deviceId: string) => {
+    setTargetDeviceForChange(deviceId);
+    setIsPasswordModalOpen(true);
+  };
+
+  // 换刀逻辑：第二步，口令验证成功，打开选择弹窗
+  const onPasswordVerified = () => {
+    setIsPasswordModalOpen(false);
+    setIsKnifeSelectionModalOpen(true);
+  };
+
+  // 换刀逻辑：第三步，选择并确认后，更新本地状态
+  const onKnifeChangedSuccess = (newModel: string) => {
+    if (targetDeviceForChange) {
+      setCurrentKnives(prev => ({
+        ...prev,
+        [targetDeviceForChange]: newModel
+      }));
+    }
+    setTargetDeviceForChange(null);
+  };
 
   // 辅助函数：获取指定设备的转向配置，默认正转
   const getDeviceRotation = (id: string) => {
@@ -1394,6 +1387,7 @@ export const MonitorDashboard = () => {
                         simulateOverload={scenario.overloadTargetId === '1'}
                         isFirst={true}
                         onViewTrend={() => setGapTrendData({ name: '1# 精浆', model: currentKnives['1'] })}
+                        onKnifeClick={() => initiateKnifeChange('1')} // 绑定换刀触发
                     />
                     <PipelineRefinerCard 
                         id="2" name="精浆" 
@@ -1402,6 +1396,7 @@ export const MonitorDashboard = () => {
                         assignedRotation={getDeviceRotation('2')}
                         simulateOverload={scenario.overloadTargetId === '2'}
                         onViewTrend={() => setGapTrendData({ name: '2# 精浆', model: currentKnives['2'] })}
+                        onKnifeClick={() => initiateKnifeChange('2')} // 绑定换刀触发
                     />
                     <PipelineRefinerCard 
                         id="3" name="精浆" 
@@ -1410,6 +1405,7 @@ export const MonitorDashboard = () => {
                         assignedRotation={getDeviceRotation('3')}
                         simulateOverload={scenario.overloadTargetId === '3'}
                         onViewTrend={() => setGapTrendData({ name: '3# 精浆', model: currentKnives['3'] })}
+                        onKnifeClick={() => initiateKnifeChange('3')} // 绑定换刀触发
                     />
                     <PipelineRefinerCard 
                         id="4" name="精浆" 
@@ -1418,6 +1414,7 @@ export const MonitorDashboard = () => {
                         assignedRotation={getDeviceRotation('4')}
                         simulateOverload={scenario.overloadTargetId === '4'}
                         onViewTrend={() => setGapTrendData({ name: '4# 精浆', model: currentKnives['4'] })}
+                        onKnifeClick={() => initiateKnifeChange('4')} // 绑定换刀触发
                     />
                     <PipelineRefinerCard 
                         id="5" name="精浆" 
@@ -1427,6 +1424,7 @@ export const MonitorDashboard = () => {
                         simulateOverload={scenario.overloadTargetId === '5'}
                         isLast={true}
                         onViewTrend={() => setGapTrendData({ name: '5# 精浆', model: currentKnives['5'] })}
+                        onKnifeClick={() => initiateKnifeChange('5')} // 绑定换刀触发
                     />
                  </div>
                  <MainOutletNode />
@@ -1507,6 +1505,21 @@ export const MonitorDashboard = () => {
       {/* 新增：物料投料弹窗 */}
       {isFeedingModalOpen && (
         <MaterialFeedingModal onClose={() => setIsFeedingModalOpen(false)} />
+      )}
+      
+      {/* 换刀流程弹窗 */}
+      {isPasswordModalOpen && (
+        <PasswordVerificationModal 
+          onSuccess={onPasswordVerified}
+          onClose={() => { setIsPasswordModalOpen(false); setTargetDeviceForChange(null); }}
+        />
+      )}
+      {isKnifeSelectionModalOpen && targetDeviceForChange && (
+        <KnifeSelectionModal
+          targetDeviceId={targetDeviceForChange}
+          onClose={() => { setIsKnifeSelectionModalOpen(false); setTargetDeviceForChange(null); }}
+          onSuccess={onKnifeChangedSuccess}
+        />
       )}
     </div>
   );

@@ -49,6 +49,9 @@ export interface KnifeDisc {
   
   // 静态参数
   estimatedLifespan: number; // 预计寿命时长
+
+  // 动态状态 (新增 - 用于换刀逻辑追踪)
+  currentDevice?: string; // 当前所在设备ID (仅当 status='in_use' 时有效)
 }
 
 export interface KnifeUsageRecord {
@@ -272,4 +275,11 @@ export interface KnifeFeedActionDetail {
   duration: string;            // 时长 (hh:mm:ss)
   
   source: OperationSource;     // 操作来源
+}
+
+// --- 操作口令管理 (Operation Password) - New v2.2 ---
+export interface OperationPassword {
+  id: string;
+  code: string;      // 口令密码
+  updatedAt: string; // 更新时间
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 // 引入新的标准组件
 import { 
@@ -158,11 +159,6 @@ export const KnifeManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'archive' | 'device_relation' | 'data'>('archive');
 
   // MOCK 数据 - 静态参数 (符合截图列结构，同时包含需求数据)
-  // 字段名称 -> 参数名称
-  // (推导) -> 英文标签
-  // 类型 -> 数据类型
-  // 规则(单位) -> 单位
-  // (Mock) -> 值
   const [staticParams] = useState([
     { 
       id: 1, 
@@ -332,15 +328,17 @@ export const KnifeManagement: React.FC = () => {
               <th className={StdTable.Th}>刀盘型号</th>
               {/* 4. 刀盘类型 */}
               <th className={StdTable.Th}>刀盘类型</th>
-              {/* 5. 刀盘编号 (移动到这里) */}
+              {/* 5. 刀盘标记 (新增) */}
+              <th className={StdTable.Th}>刀盘标记</th>
+              {/* 6. 刀盘编号 */}
               <th className={StdTable.Th}>刀盘编号</th>
-              {/* 6. 累计使用时长 */}
+              {/* 7. 累计使用时长 */}
               <th className={`${StdTable.Th} text-right`}>累计使用时长 (h)</th>
-              {/* 7. 最后上机时间 */}
+              {/* 8. 最后上机时间 */}
               <th className={StdTable.Th}>最后上机时间</th>
-              {/* 8. 最后下机时间 */}
+              {/* 9. 最后下机时间 */}
               <th className={StdTable.Th}>最后下机时间</th>
-              {/* 9. 操作 */}
+              {/* 10. 操作 */}
               <th className={`${StdTable.Th} text-center`}>操作</th>
             </tr>
           </thead>
@@ -360,6 +358,16 @@ export const KnifeManagement: React.FC = () => {
                   <td className={`${StdTable.Td} text-gray-700`}>{knife.model}</td>
                   {/* 刀盘类型 */}
                   <td className={`${StdTable.Td} text-gray-700`}>{knife.type === 'cut' ? '切刀' : '磨刀'}</td>
+                  {/* 刀盘标记 (新增) */}
+                  <td className={StdTable.Td}>
+                    {knife.mark ? (
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-100">
+                         {knife.mark}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
                   {/* 刀盘编号 */}
                   <td className={`${StdTable.Td} font-medium text-gray-900`}>{knife.id}</td>
                   {/* 累计使用时长 */}
@@ -385,7 +393,7 @@ export const KnifeManagement: React.FC = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={10} className={StdTable.Empty}>
+                <td colSpan={11} className={StdTable.Empty}>
                   <div className="flex flex-col items-center gap-2">
                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                        <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

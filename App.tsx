@@ -10,6 +10,7 @@ import { KnifeManagement } from './pages/admin/KnifeManagement';
 import { DeviceManagement } from './pages/admin/DeviceManagement'; // 引入设备管理页面
 import { MaterialManagement } from './pages/admin/MaterialManagement'; // 引入物料管理页面
 import { MonitorDashboard } from './pages/monitor/MonitorDashboard'; // 新增：引入监测工作台
+import { OperationPasswordManagement } from './pages/admin/OperationPasswordManagement'; // 新增：引入操作口令管理
 
 // ----------------------------------------------------------------------
 // 子页面组件
@@ -146,9 +147,13 @@ const App: React.FC = () => {
              {currentPath === '/admin/tools' && <KnifeManagement />}
              {currentPath === '/admin/devices' && <DeviceManagement />}
              {currentPath === '/admin/materials' && <MaterialManagement />}
+             {currentPath === '/admin/passwords' && <OperationPasswordManagement />} {/* 新增路由 */}
              
              {/* 默认 dashboard */}
-             {currentPath !== '/admin/tools' && currentPath !== '/admin/devices' && currentPath !== '/admin/materials' && <AdminDashboard />}
+             {currentPath !== '/admin/tools' && 
+              currentPath !== '/admin/devices' && 
+              currentPath !== '/admin/materials' && 
+              currentPath !== '/admin/passwords' && <AdminDashboard />}
           </AdminLayoutWithRouting>
         </div>
       )
