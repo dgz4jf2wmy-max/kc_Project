@@ -267,7 +267,7 @@ export interface KnifeFeedSummary {
 // 3. & 4. 操作明细 (工艺操作 & 操作动作 共用结构)
 export interface KnifeFeedActionDetail {
   id: string;
-  timeRange: string;           // 时间 (yyyy-mm-dd hh:mm:ss ~ yyyy-mm-dd hh:mm:ss)
+  startTime: string;           // 开始时间 (yyyy-mm-dd hh:mm:ss)
   deviceName: string;          // 关联设备台账
   
   type: FeedType;              // 进/退刀类型
@@ -282,4 +282,15 @@ export interface OperationPassword {
   id: string;
   code: string;      // 口令密码
   updatedAt: string; // 更新时间
+}
+
+// --- 工艺回溯 (Process Backtracking) - New v2.4 ---
+export type ProcessBacktrackType = '开机操作' | '工艺操作';
+
+export interface ProcessBacktrackRecord {
+  id: string;
+  operationType: ProcessBacktrackType; // 操作类型
+  date: string;                        // 日期 (yyyy-mm-dd)
+  timeRange: string;                   // 时间 (hh:mm:ss~ hh:mm:ss)
+  source: OperationSource[];           // 操作来源 (规则: 汇总工艺操作中所包含的操作来源; 支持多选，表现为并且关系)
 }

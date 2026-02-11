@@ -49,6 +49,7 @@ import { GapTrendModal } from './GapTrendModal'; // 引入间隙趋势弹窗
 import { MaterialFeedingModal } from './MaterialFeedingModal'; // 引入物料投料弹窗
 import { PasswordVerificationModal } from './PasswordVerificationModal'; // 新增：引入口令验证弹窗
 import { KnifeSelectionModal } from './KnifeSelectionModal'; // 新增：引入刀盘选择弹窗
+import { ProcessTraceabilityModal } from './ProcessTraceabilityModal'; // 新增：引入工艺回溯弹窗
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -484,6 +485,7 @@ const ValveIcon = ({ isOpen, vertical = false, colorClass }: any) => {
 };
 
 // --- 4. 总进浆节点 (Main Inlet Node) ---
+// 更新：显式展示关联设备 VIRT-IN-001 和动态参数 AI_PRESS_IN
 const MainInletNode = () => {
   const [pressure, setPressure] = useState((2.8 + Math.random() * 0.1).toFixed(2));
   
@@ -497,11 +499,11 @@ const MainInletNode = () => {
   const radius = 12;
 
   return (
-    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 relative overflow-hidden z-10">
+    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 relative overflow-hidden z-10 group/inlet">
       
       {/* Header */}
       <div className="px-2 py-2 border-b border-slate-100 flex justify-center items-center bg-white h-[45px] z-20 relative">
-         <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+         <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="设备: VIRT-IN-001 (入口处点位)">
             <ArrowRightCircle size={14} className="text-emerald-500"/> 总进浆
          </span>
       </div>
@@ -557,14 +559,26 @@ const MainInletNode = () => {
          {/* 节点大圆点 */}
          <div className="absolute left-1/2 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm -ml-2 -mt-[5px]" style={{ top: CONFIG.inletY }}></div>
          <div className="absolute right-[-20px] w-[20px] h-[6px] bg-emerald-400" style={{ top: CONFIG.inletY }}></div>
+         
+         {/* 设备关联信息 (Hover显示) */}
+         <div className="absolute top-1 left-0 w-full text-center opacity-0 group-hover/inlet:opacity-100 transition-opacity bg-slate-800/80 text-white py-1">
+             <div className="text-[9px] font-mono">ID:6</div>
+         </div>
       </div>
       
       {/* Data & Valve Area */}
       <div className="flex-1 flex flex-col items-center p-3 gap-8 z-10 pointer-events-none">
-         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-emerald-100 w-full shadow-sm z-20 mt-4">
-            <span className="text-[10px] text-emerald-600 font-bold uppercase mb-1">总管压力</span>
+         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-emerald-100 w-full shadow-sm z-20 mt-4 relative group/tooltip">
+            <span className="text-[10px] text-emerald-600 font-bold uppercase mb-1 flex items-center gap-1">
+               总管压力
+            </span>
             <span className="font-mono font-bold text-2xl text-slate-700 leading-none">{pressure}</span>
             <span className="text-[10px] text-slate-400">bar</span>
+
+            {/* 参数关联提示 */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover/tooltip:opacity-100 whitespace-nowrap transition-opacity">
+               Source: AI_PRESS_IN
+            </div>
          </div>
          
          {/* 阀门 - 绝对居中 - 上移至 150 */}
@@ -582,6 +596,7 @@ const MainInletNode = () => {
 }
 
 // --- 5. 总出浆节点 (Main Outlet Node) ---
+// 更新：显式展示关联设备 VIRT-OUT-001 和动态参数 AI_FLOW_OUT
 const MainOutletNode = () => {
   const [flow, setFlow] = useState((2850 + Math.random() * 50).toFixed(0));
   
@@ -595,11 +610,11 @@ const MainOutletNode = () => {
   const radius = 12;
 
   return (
-    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden relative z-10">
+    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden relative z-10 group/outlet">
       
       {/* Header */}
       <div className="px-2 py-2 border-b border-slate-100 flex justify-center items-center bg-white h-[45px] z-20 relative">
-         <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+         <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="设备: VIRT-OUT-001 (出口处点位)">
             <Droplet size={14} className="text-blue-500"/> 总出浆
          </span>
       </div>
@@ -661,14 +676,24 @@ const MainOutletNode = () => {
       <div className="relative w-full bg-slate-50/30 z-10 pointer-events-none" style={{ height: `${CONFIG.visualHeight}px` }}>
          <div className="absolute left-1/2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-sm -ml-2 -mt-[5px]" style={{ top: CONFIG.outletTopY }}></div>
          <div className="absolute left-[-20px] w-[20px] h-[6px] bg-emerald-400" style={{ top: CONFIG.outletTopY }}></div>
+         
+         {/* 设备关联信息 (Hover显示) */}
+         <div className="absolute top-1 left-0 w-full text-center opacity-0 group-hover/outlet:opacity-100 transition-opacity bg-slate-800/80 text-white py-1">
+             <div className="text-[9px] font-mono">ID:7</div>
+         </div>
       </div>
 
       {/* Data & Valve Area */}
       <div className="flex-1 flex flex-col items-center p-3 gap-8 z-10 pointer-events-none">
-         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-blue-100 w-full shadow-sm z-20 mt-4">
+         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-blue-100 w-full shadow-sm z-20 mt-4 relative group/tooltip">
             <span className="text-[10px] text-blue-600 font-bold uppercase mb-1">总管流量</span>
             <span className="font-mono font-bold text-xl text-slate-700 leading-none">{flow}</span>
             <span className="text-[10px] text-slate-400">L/m</span>
+
+            {/* 参数关联提示 */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover/tooltip:opacity-100 whitespace-nowrap transition-opacity">
+               Source: AI_FLOW_OUT
+            </div>
          </div>
          
          {/* 阀门 - 绝对居中 - 上移至 120 */}
@@ -879,13 +904,20 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
              <div className="flex flex-col gap-1 relative group/item">
                 <div className="flex items-center justify-center gap-1">
                     <span className="text-[9px] text-slate-400">累计变化</span>
-                    {/* 新增：趋势按钮 (外科手术式植入，不影响周围布局) */}
+                    {/* 
+                        FIX: 纯图标按钮，深色背景，无文字 
+                        - w-5 h-5 控制尺寸
+                        - bg-slate-700 深色背景
+                        - text-white 白色图标
+                        - TrendingUp size={12} 图标放大
+                        - 移除 scale/transform 交互
+                    */}
                     <button 
                        onClick={(e) => { e.stopPropagation(); onViewTrend && onViewTrend(); }}
-                       className="text-blue-500 bg-blue-50 hover:bg-blue-100 hover:text-blue-600 p-0.5 rounded transition-colors shadow-sm cursor-pointer"
+                       className="w-5 h-5 flex items-center justify-center bg-slate-700 hover:bg-slate-800 text-white rounded shadow-sm transition-colors cursor-pointer"
                        title="查看趋势"
                     >
-                       <TrendingUp size={10} />
+                       <TrendingUp size={12} strokeWidth={2.5} />
                     </button>
                 </div>
                 <span className="font-mono font-bold text-xs text-slate-600 flex justify-center items-center">
@@ -916,10 +948,13 @@ const ShiftInfoCard = () => {
 };
 
 // --- 8. 功能操作快捷区 ---
-const FunctionShortcuts = ({ onOpenFeed }: { onOpenFeed: () => void }) => {
+const FunctionShortcuts = ({ onOpenFeed, onOpenTraceability }: { onOpenFeed: () => void, onOpenTraceability: () => void }) => {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <button className="relative group overflow-hidden bg-white border border-indigo-100 rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 active:scale-[0.98]">
+      <button 
+         onClick={onOpenTraceability}
+         className="relative group overflow-hidden bg-white border border-indigo-100 rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 active:scale-[0.98]"
+      >
          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
             <History size={40} className="text-indigo-600"/>
          </div>
@@ -1231,6 +1266,8 @@ export const MonitorDashboard = () => {
   const [isKnifeChangeModalOpen, setIsKnifeChangeModalOpen] = useState(false);
   // 状态：控制物料投料弹窗 (新增)
   const [isFeedingModalOpen, setIsFeedingModalOpen] = useState(false);
+  // 状态：控制工艺回溯弹窗 (新增)
+  const [isTraceabilityModalOpen, setIsTraceabilityModalOpen] = useState(false);
   
   // 新增：换刀操作相关状态
   const [targetDeviceForChange, setTargetDeviceForChange] = useState<string | null>(null);
@@ -1357,7 +1394,10 @@ export const MonitorDashboard = () => {
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* 左侧边栏 - 20% */}
         <div className="col-span-2 flex flex-col gap-4 overflow-hidden h-full">
-           <FunctionShortcuts onOpenFeed={() => setIsFeedingModalOpen(true)} />
+           <FunctionShortcuts 
+              onOpenFeed={() => setIsFeedingModalOpen(true)} 
+              onOpenTraceability={() => setIsTraceabilityModalOpen(true)} 
+           />
            <ShiftInfoCard />
            <CraftStandardCard onEdit={() => setIsIndicatorModalOpen(true)} />
            <div className="flex-1 min-h-[200px] overflow-hidden">
@@ -1505,6 +1545,11 @@ export const MonitorDashboard = () => {
       {/* 新增：物料投料弹窗 */}
       {isFeedingModalOpen && (
         <MaterialFeedingModal onClose={() => setIsFeedingModalOpen(false)} />
+      )}
+      
+      {/* 新增：工艺回溯弹窗 */}
+      {isTraceabilityModalOpen && (
+        <ProcessTraceabilityModal onClose={() => setIsTraceabilityModalOpen(false)} />
       )}
       
       {/* 换刀流程弹窗 */}

@@ -1,3 +1,4 @@
+
 import { ApiResponse, DeviceRegistryItem, DeviceParam } from '../types';
 
 /**
@@ -63,6 +64,28 @@ export const fetchDeviceRegistryList = async (): Promise<ApiResponse<DeviceRegis
         level: 'A',
         manufacturer: 'Valmet',
         productionDate: '2025-12-15'
+      },
+      // 新增虚拟设备：入口处点位
+      {
+        id: '6',
+        status: 'in_use',
+        name: '入口处点位',
+        code: 'VIRT-IN-001',
+        model: 'VIRTUAL-NODE',
+        level: 'C',
+        manufacturer: 'System',
+        productionDate: '2025-01-01'
+      },
+      // 新增虚拟设备：出口处点位
+      {
+        id: '7',
+        status: 'in_use',
+        name: '出口处点位',
+        code: 'VIRT-OUT-001',
+        model: 'VIRTUAL-NODE',
+        level: 'C',
+        manufacturer: 'System',
+        productionDate: '2025-01-01'
       }
     ]
   };
@@ -87,6 +110,52 @@ export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResp
 // 获取设备动态参数 (Mock - v1.3 根据用户提供的业务数据更新)
 export const fetchDeviceDynamicParams = async (deviceId: string): Promise<ApiResponse<DeviceParam[]>> => {
   await new Promise(resolve => setTimeout(resolve, 200));
+
+  // 针对入口处点位 (ID: 6)
+  if (deviceId === '6') {
+    return {
+      code: 200,
+      message: 'success',
+      data: [
+        { 
+          id: 'dyn-in-01', 
+          name: '浓度', 
+          description: '入口浆料实时浓度', 
+          upperLimit: '6.00', 
+          lowerLimit: '2.00', 
+          source: 'AI_CONC_IN' 
+        },
+        { 
+          id: 'dyn-in-02', 
+          name: '入口压力', 
+          description: '入口总管实时压力', 
+          upperLimit: '10.00', 
+          lowerLimit: '0.00', 
+          source: 'AI_PRESS_IN' 
+        }
+      ]
+    };
+  }
+
+  // 针对出口处点位 (ID: 7)
+  if (deviceId === '7') {
+    return {
+      code: 200,
+      message: 'success',
+      data: [
+        { 
+          id: 'dyn-out-01', 
+          name: '流量', 
+          description: '出口总管实时流量', 
+          upperLimit: '5000.00', 
+          lowerLimit: '0.00', 
+          source: 'AI_FLOW_OUT' 
+        }
+      ]
+    };
+  }
+
+  // 默认设备 (磨浆机)
   return {
     code: 200,
     message: 'success',
@@ -138,6 +207,15 @@ export const fetchDeviceDynamicParams = async (deviceId: string): Promise<ApiRes
         upperLimit: '150.00', 
         lowerLimit: '0.00', 
         source: 'TT_Main_01' 
+      },
+      // 新增：刀盘间隙 (需求关联)
+      { 
+        id: 'dyn-07', 
+        name: '刀盘间隙', 
+        description: '实时刀盘间隙值 (Type: Number .00)', 
+        upperLimit: '2.00', 
+        lowerLimit: '0.00', 
+        source: 'GAP_SENSOR_01' 
       },
     ]
   };
