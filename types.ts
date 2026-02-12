@@ -1,296 +1,301 @@
 
-// 定义系统模块枚举
+// types.ts
+
+// --- Enums & Unions ---
+
 export enum ModuleType {
-  DIGITAL_TWIN = 'DIGITAL_TWIN', // 孪生大屏
-  MONITORING = 'MONITORING',     // 监测工作台
-  ANALYSIS = 'ANALYSIS',         // 数据分析
-  ADMIN = 'ADMIN'                // 后台管理
+  DIGITAL_TWIN = 'digital_twin',
+  MONITORING = 'monitoring',
+  ANALYSIS = 'analysis',
+  ADMIN = 'admin'
 }
 
-// 导航项结构
+export type RotationDirection = '正转' | '反转';
+export type AnalysisShiftType = '早班' | '中班' | '晚班';
+export type AnalysisQualifiedTeamType = '甲' | '乙' | '丙' | '丁' | '平均';
+
+// --- Navigation ---
+
 export interface NavItem {
   id: string;
   label: string;
   module: ModuleType;
   path: string;
-  icon?: string; // 预留图标字段
 }
 
-// 用户信息结构
-export interface UserProfile {
-  id: string;
-  name: string;
-  role: 'operator' | 'manager' | 'admin';
-  department: string;
-}
+// --- Common API ---
 
-// 通用API响应结构 (预留给后端对接)
 export interface ApiResponse<T> {
   code: number;
   message: string;
   data: T;
 }
 
-// --- 刀盘管理相关模型 (v1.1) ---
-
-export type KnifeStatus = 'idle' | 'in_use' | 'scrapped'; // 闲置 | 在用 | 报废
-export type KnifeType = 'cut' | 'grind'; // 切刀 | 磨刀
+// --- Knife Management ---
 
 export interface KnifeDisc {
-  id: string;           // 刀盘编号
-  model: string;        // 刀盘型号
-  type: KnifeType;      // 刀盘类型
-  status: KnifeStatus;  // 状态
-  usageHours: number;   // 累计使用时长
-  lastDownTime: string; // 最后下机时间 (YYYY-MM-DD)
-  lastUpTime: string;   // 最后上机时间 (YYYY-MM-DD)
-  mark?: string;        // 刀盘标记 (v1.1)
-  remark?: string;      // 备注
-  
-  // 静态参数
-  estimatedLifespan: number; // 预计寿命时长
-
-  // 动态状态 (新增 - 用于换刀逻辑追踪)
-  currentDevice?: string; // 当前所在设备ID (仅当 status='in_use' 时有效)
+  id: string;
+  model: string;
+  type: 'cut' | 'grind';
+  status: 'idle' | 'in_use' | 'scrapped';
+  usageHours: number;
+  lastUpTime: string;
+  lastDownTime: string;
+  estimatedLifespan: number;
+  mark?: string;
+  remark?: string;
+  currentDevice?: string;
 }
 
 export interface KnifeUsageRecord {
   id: string;
-  date: string;         // 日期
-  type: 'up' | 'down';  // 使用类型：上机/下机
-  device: string;       // 关联设备名称
-  team: string;         // 班组 (甲/乙/丙/丁)
+  date: string;
+  type: 'up' | 'down';
+  device: string;
+  team: string;
 }
 
 export interface KnifeGapRecord {
   id: string;
-  weekDate: string;     // 自然周最后一天
-  gapValue: number;     // 间隙值 (.00)
+  weekDate: string;
+  gapValue: number;
 }
 
-// --- 设备管理相关模型 (v1.0 新增) ---
+export interface KnifeChangeRecord {
+  id: string;
+  date: string;
+  time: string;
+  team: string;
+  device1_knife: string;
+  device2_knife: string;
+  device3_knife: string;
+  device4_knife: string;
+  device5_knife: string;
+  changedDeviceIds: number[];
+}
 
-export type DeviceStatus = 'in_use' | 'maintenance' | 'stopped'; // 使用中 | 维修中 | 停机
+// --- Device Management ---
 
 export interface DeviceRegistryItem {
-  id: string;           // 唯一标识
-  status: DeviceStatus; // 设备状态
-  name: string;         // 设备名称
-  code: string;         // 设备编码
-  model: string;        // 设备型号
-  level: string;        // 设备等级 (A/B/C)
-  manufacturer: string; // 生产厂家
-  productionDate: string; // 生产日期
+  id: string;
+  status: 'in_use' | 'maintenance' | 'stopped';
+  name: string;
+  code: string;
+  model: string;
+  level: string;
+  manufacturer: string;
+  productionDate: string;
 }
 
-// v1.2 更新：设备参数模型，兼容静态和动态参数的不同字段需求
 export interface DeviceParam {
   id: string;
-  name: string;      // 参数名称 / 标签名称
-  
-  // 静态参数常用字段
-  tag?: string;       // 英文标签
-  dataType?: string;  // 数据类型
-  unit?: string;      // 单位
-  value?: string;     // 当前值
-  
-  // 动态参数常用字段 (v1.2 新增)
-  description?: string; // 描述
-  upperLimit?: string;  // 量程上限
-  lowerLimit?: string;  // 量程下限
-  source?: string;      // 数据源
-  collectFreq?: string; // 采集频率 (旧字段保留)
+  name: string;
+  tag?: string;
+  dataType?: string;
+  unit?: string;
+  value?: string;
+  description?: string;
+  upperLimit?: string;
+  lowerLimit?: string;
+  source?: string;
 }
 
-// --- 物料管理相关模型 (v1.4 重构：投料与浆板质量) ---
+// --- Material Management ---
 
-// 3. 物料指标 & 2. 物料信息 (合并在详情结构中，因为是 1:1)
 export interface MaterialBatchDetail {
   id: string;
-  // -- 物料信息 --
-  batchNo: string;      // 批号
-  manufacturer: string; // 厂家
-  productCode: string;  // 产品代号
-  
-  // -- 物料指标 --
-  pulpType: string;         // 浆板种类
-  quantity: number;         // 数量T (.000)
-  whiteness: number;        // 白度 (0.)
-  dust: number;             // 尘埃MM2M2 (.0)
-  freeness: number;         // 叩解度°SR (0.)
-  breakingLength: number;   // 裂断长M (0.)
-  foldingEndurance: number; // 耐折度双次 (0.)
-  moisture: number;         // 水份 (0.)
-  grammage: number;         // 定量GM2 (.0)
-  fluorescence: number;     // 荧光检查MM2M2 (0.)
-  L: number;                // L (.00)
-  A: number;                // A (.00)
-  B: string;                // B (字符 20)
-  fiberLength: number;      // 纤维长度 (0.)
-  foreignFiber: number;     // 异性纤维 (0.)
-  phValue: number;          // PH值 (0.)
-  viscosity: number;        // 粘度 (0.)
+  batchNo: string;
+  manufacturer: string;
+  productCode: string;
+  pulpType: string;
+  quantity: number;
+  whiteness: number;
+  dust: number;
+  freeness: number;
+  breakingLength: number;
+  foldingEndurance: number;
+  moisture: number;
+  grammage: number;
+  fluorescence: number;
+  L: number;
+  A: number;
+  B: string | number;
+  fiberLength: number;
+  foreignFiber: number;
+  phValue: number;
+  viscosity: number;
 }
 
-// 1. 投料信息 (父级记录)
 export interface MaterialFeedRecord {
   id: string;
-  feedDate: string;   // 投料日期 (yyyy-mm-dd)
-  team: string;       // 投料班组 (甲/乙/丙/丁)
-  shiftTime: string;  // 班组值班时间 (hh:mm~hh:mm)
-  
-  // 关联的物料批次列表 (1对多)
+  feedDate: string;
+  team: string;
+  shiftTime: string;
   batches: MaterialBatchDetail[];
 }
 
-// ==========================================
-// NEW MODULES (v2.0) - 基于产品经理需求定义
-// ==========================================
-
-// --- 3.1.4 工艺指标 (Process Indicators) ---
-
-export type RotationDirection = '正转' | '反转'; // 刀盘转向有效值
+// --- Monitor & Process ---
 
 export interface ProcessIndicatorDeviceConfig {
-  deviceId: string;       // 设备标识 (e.g. "1#", "2#")
-  rotation: RotationDirection; 
+  deviceId: string;
+  rotation: RotationDirection;
 }
 
 export interface ProcessIndicator {
   id: string;
-  
-  // 时间控制
-  startTime: string;      // 开始时间 (yyyy-mm-dd hh:mm)
-  endTime?: string;       // 结束时间 (yyyy-mm-dd hh:mm) - 规则：由新指标下发触发计算(-1min)
-  
-  // 核心指标
-  freeness: number;          // 叩解度 (0.)
-  freenessDeviation: number; // 叩解度偏差值 (.0)
-  fiberLength: number;       // 纤维长度 (.00)
-  fiberLengthDeviation: number; // 纤维长度偏差值 (.00)
-  
-  // 关联信息
-  productCode: string;       // 产品代号 (关联字典)
-  
-  // 设备配置 (1#~5# 顺序展示)
-  deviceConfigs: ProcessIndicatorDeviceConfig[]; 
+  startTime: string;
+  productCode: string;
+  freeness: number;
+  freenessDeviation: number;
+  fiberLength: number;
+  fiberLengthDeviation: number;
+  deviceConfigs: ProcessIndicatorDeviceConfig[];
 }
 
-// --- 3.1.5 异常记录 (Exception Records) ---
-
-// 异常类型枚举
-export type ExceptionType = '叩解度异常' | '纤维长度异常';
-export type TransferObject = '抄纸'; // 信息传递对象，目前默认抄纸
-
-// 1. 工艺异常记录
-export interface ProcessExceptionRecord {
-  id: string;
-  
-  // 基础信息 (只读)
-  date: string;              // 日期 (yyyy-mm-dd)
-  team: string;              // 班组 (甲/乙/丙/丁)
-  shiftTime: string;         // 班组值班时间 (hh:mm~hh:mm)
-  
-  // 关联与类型
-  productCode: string;       // 产品代号
-  exceptionType: ExceptionType; // 异常类型
-  
-  // 快照数据 (关联实时数据库的值，需存储快照)
-  refFreenessSnapshot?: string;    // 实时库内叩解度值
-  refFiberLengthSnapshot?: string; // 实时库内纤维长度值
-  
-  // 处置过程
-  fluctuationStartTime: string;    // 波动开始时间 (hh:mm)
-  preAdjustmentValue: number;      // 调整前指标 (.00) - UI需根据类型追加 °SR 或 mm
-  completionTime: string;          // 处置完成时间 (hh:mm)
-  postAdjustmentValue: number;     // 调整后指标 (.00) - UI需根据类型追加 °SR 或 mm
-  
-  // 传递记录
-  transferTime: string;            // 信息传递记录时间 (hh:mm)
-  transferObject: TransferObject;  // 信息传递记录对象 (默认: 抄纸)
-  
-  remark?: string;                 // 备注 (200字)
-  isDeleted: boolean;              // 删除标识 (软删除)
-}
-
-// 2. 生产异常记录
 export interface ProductionExceptionRecord {
   id: string;
-  date: string;         // 日期 (yyyy-mm-dd)
-  description: string;  // 异常情况 (200字)
-  duration: number;     // 持续时间 (.00) 单位: h
-  team: string;         // 班组 (甲/乙/丙/丁)
+  date: string;
+  team: string;
+  description: string;
+  duration: number;
 }
 
-// --- 换刀记录 (Knife Change Record) - New v2.1 ---
-export interface KnifeChangeRecord {
-  id: string;
-  date: string;         // yyyy-mm-dd
-  time: string;         // hh:mm (辅助字段，用于排序和展示)
-  
-  // 刀盘型号配置 (只读)
-  device1_knife: string; // 1#精浆机刀盘
-  device2_knife: string; // 2#精浆机刀盘
-  device3_knife: string; // 3#精浆机刀盘
-  device4_knife: string; // 4#精浆机刀盘
-  device5_knife: string; // 5#精浆机刀盘
-  
-  team: string;          // 班组: 甲/乙/丙/丁
-  
-  // 前端辅助字段：标识本次记录哪台设备发生了变更，用于UI高亮
-  changedDeviceIds: number[]; 
-}
+// --- Admin / Password ---
 
-
-// --- 3.1.6 数据分析 (Data Analysis) ---
-
-export type OperationSource = '自动操作' | '人工操作';
-export type FeedType = '累计进刀' | '累计退刀';
-
-// 1. & 2. 进退刀汇总 (工艺异常 & 工艺回溯 共用结构)
-export interface KnifeFeedSummary {
-  id: string;
-  deviceName: string;        // 关联设备台账
-  
-  // 核心计算规则：正数为进刀，负数为退刀
-  // 实际存储时可能只存 netChange，UI根据正负拆分展示。
-  // 此处遵循需求文档定义的字段：
-  accumulatedInFeed?: number;  // 累计进刀 (.00) - 仅当结果为正时有值
-  accumulatedOutFeed?: number; // 累计退刀 (.00) - 仅当结果为负时有值
-  
-  inFeedDuration?: number;     // 进刀时长 (.00)
-  outFeedDuration?: number;    // 退刀时长 (.00)
-  
-  operationSource: OperationSource[]; // 操作来源汇总 (可能包含多种)
-}
-
-// 3. & 4. 操作明细 (工艺操作 & 操作动作 共用结构)
-export interface KnifeFeedActionDetail {
-  id: string;
-  startTime: string;           // 开始时间 (yyyy-mm-dd hh:mm:ss)
-  deviceName: string;          // 关联设备台账
-  
-  type: FeedType;              // 进/退刀类型
-  gapChange: number;           // 刀盘间隙变化 (.00)
-  duration: string;            // 时长 (hh:mm:ss)
-  
-  source: OperationSource;     // 操作来源
-}
-
-// --- 操作口令管理 (Operation Password) - New v2.2 ---
 export interface OperationPassword {
   id: string;
-  code: string;      // 口令密码
-  updatedAt: string; // 更新时间
+  code: string;
+  updatedAt: string;
 }
 
-// --- 工艺回溯 (Process Backtracking) - New v2.4 ---
-export type ProcessBacktrackType = '开机操作' | '工艺操作';
+// --- Traceability ---
 
 export interface ProcessBacktrackRecord {
   id: string;
-  operationType: ProcessBacktrackType; // 操作类型
-  date: string;                        // 日期 (yyyy-mm-dd)
-  timeRange: string;                   // 时间 (hh:mm:ss~ hh:mm:ss)
-  source: OperationSource[];           // 操作来源 (规则: 汇总工艺操作中所包含的操作来源; 支持多选，表现为并且关系)
+  operationType: string;
+  date: string;
+  timeRange: string;
+  source: string[];
+}
+
+export interface KnifeFeedSummary {
+  id: string;
+  deviceName: string;
+  accumulatedInFeed?: number;
+  accumulatedOutFeed?: number;
+  inFeedDuration?: number;
+  outFeedDuration?: number;
+  operationSource: string[];
+}
+
+export interface KnifeFeedActionDetail {
+  id: string;
+  startTime: string;
+  deviceName: string;
+  type: string;
+  gapChange: number;
+  duration: string;
+  source: string;
+}
+
+// --- Team Performance Analysis ---
+
+export interface TeamRateItem {
+  team: string;
+  value: number;
+}
+
+export interface OverallStats {
+  avgStartupDuration: number;
+  startupCount: number;
+  teamFreenessQualifiedRate: TeamRateItem[];
+  teamFiberLengthQualifiedRate: TeamRateItem[];
+}
+
+export interface DailyStartupDuration {
+  date: string;
+  duration: number;
+  type: '初次开机' | '其他开机';
+  team: string;
+  avgDuration: number;
+}
+
+export interface DailyAvgStartupDuration {
+  date: string;
+  avgDuration: number;
+}
+
+export interface DailyStartupDurationDetail {
+  time: string;
+  duration: number;
+  team: string;
+  shiftType: AnalysisShiftType;
+}
+
+export interface DailyAvgStartupDurationDetail {
+  time: string;
+  avgDuration: number;
+}
+
+export interface TeamStartupStabilityDetail {
+  startTime: string;
+  duration: number;
+  team: string;
+  shiftType: AnalysisShiftType;
+}
+
+export interface StartupDurationDistributionDetail {
+  startTime: string;
+  duration: number;
+  team: string;
+  shiftType: AnalysisShiftType;
+}
+
+// 班组开机稳定性 (图表实体)
+export interface TeamStartupStability {
+  team: string;
+  duration: number;
+  // 可以包含其他用于图表展示的元数据，如是否异常
+  isOutlier?: boolean; 
+}
+
+// 开机时长分布 (图表实体)
+export interface StartupDurationDistribution {
+  range0to20: number;
+  range20to40: number;
+  range40to60: number;
+  rangeOver60: number;
+  totalCount: number;
+}
+
+export interface QualifiedRateStats {
+  readonly teamFreenessQualifiedRate: number;
+  readonly avgFreenessQualifiedRate: number;
+  readonly teamFiberLengthQualifiedRate: number;
+  readonly avgFiberLengthQualifiedRate: number;
+}
+
+export interface QualifiedRateStatsDetail {
+  readonly time: string;
+  readonly freenessQualifiedRate: number;
+  readonly fiberLengthQualifiedRate: number;
+  readonly team: AnalysisQualifiedTeamType;
+}
+
+export interface DailyTeamQualifiedRate {
+  date: string;
+  freeness: {
+    teamA: number;
+    teamB: number;
+    teamC: number;
+    teamD: number;
+    total: number;
+  };
+  fiberLength: {
+    teamA: number;
+    teamB: number;
+    teamC: number;
+    teamD: number;
+    total: number;
+  };
 }

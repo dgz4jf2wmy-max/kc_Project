@@ -27,6 +27,9 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
   // 获取当前激活的模块信息
   const activeModule = viewModules.find(m => m.module === currentModule) || viewModules[0];
 
+  // 判定是否为孪生模式
+  const isTwinMode = currentModule === ModuleType.DIGITAL_TWIN;
+
   // 点击外部关闭下拉菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,6 +50,13 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
   const titleColor = isLightMode ? 'text-gray-800' : 'text-white';
   const dividerColor = isLightMode ? 'bg-gray-300' : 'bg-white/10';
   
+  // 头部背景色逻辑：
+  // 1. 孪生模式 (TwinMode): 强制使用系统深蓝背景 (bg-system-bg)，因为页面主体是黑色的。
+  // 2. 其他模式: 保持透明 (pointer-events-none 让下方背景透出来)。
+  const headerBgClass = isTwinMode 
+    ? 'bg-system-bg shadow-sm border-b border-white/5' 
+    : '';
+
   // 下拉框触发器样式
   const triggerBaseStyle = "flex items-center gap-3 px-5 py-2.5 rounded-lg border backdrop-blur-md transition-all duration-300";
   const triggerActiveStyle = isDropdownOpen 
@@ -56,7 +66,7 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
       : 'bg-system-card/80 border-white/10 text-gray-200 hover:bg-system-card hover:border-white/30'; // 深色模式
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 px-8 py-5 flex justify-between items-center pointer-events-none">
+    <header className={`fixed top-0 left-0 w-full z-50 px-8 py-5 flex justify-between items-center pointer-events-none transition-colors duration-300 ${headerBgClass}`}>
       {/* 左侧区域：标题 + 视图切换 (允许交互) */}
       <div className="flex items-center gap-6 pointer-events-auto">
         {/* 系统标识 */}

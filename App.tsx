@@ -11,53 +11,14 @@ import { DeviceManagement } from './pages/admin/DeviceManagement'; // 引入设�
 import { MaterialManagement } from './pages/admin/MaterialManagement'; // 引入物料管理页面
 import { MonitorDashboard } from './pages/monitor/MonitorDashboard'; // 新增：引入监测工作台
 import { OperationPasswordManagement } from './pages/admin/OperationPasswordManagement'; // 新增：引入操作口令管理
+import { TeamPerformance } from './pages/admin/TeamPerformance'; // 新增：引入班组绩效页面
+import TwinDashboard from './pages/twin/TwinDashboard'; // 引入新的孪生大屏组件
 
 // ----------------------------------------------------------------------
 // 子页面组件
 // ----------------------------------------------------------------------
 
-const TwinView: React.FC = () => (
-  <div className="h-full grid grid-cols-12 gap-6">
-    {/* 模拟3D区域 */}
-    <div className="col-span-8 bg-black/20 rounded-2xl border border-white/5 flex items-center justify-center relative overflow-hidden group">
-      <div className="text-center">
-        <div className="text-6xl mb-4 opacity-50 animate-pulse">🧊</div>
-        <p className="text-xl text-blue-400 font-mono">3D ENGINE VIEWPORT</p>
-        <p className="text-sm text-gray-500 mt-2">此处加载 WebGL/Three.js 磨浆机模型</p>
-      </div>
-      {/* 装饰性网格线 */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
-    </div>
-    
-    {/* 右侧数据面板 */}
-    <div className="col-span-4 flex flex-col space-y-6">
-      <div className="flex-1 bg-system-card/50 rounded-2xl border border-white/10 p-6 backdrop-blur-sm">
-        <h3 className="text-lg font-bold border-l-4 border-yellow-500 pl-3 mb-4">实时告警</h3>
-        <div className="space-y-3">
-           {[1, 2, 3].map(i => (
-             <div key={i} className="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded">
-               <span className="text-red-300 text-sm">#A0{i} 磨片温度过高</span>
-               <span className="text-xs text-gray-400">刚刚</span>
-             </div>
-           ))}
-        </div>
-      </div>
-      <div className="flex-1 bg-system-card/50 rounded-2xl border border-white/10 p-6 backdrop-blur-sm">
-        <h3 className="text-lg font-bold border-l-4 border-green-500 pl-3 mb-4">产线概况</h3>
-        <div className="grid grid-cols-2 gap-4">
-           <div className="p-4 bg-white/5 rounded text-center">
-             <div className="text-2xl font-bold text-white">98%</div>
-             <div className="text-xs text-gray-400">OEE</div>
-           </div>
-           <div className="p-4 bg-white/5 rounded text-center">
-             <div className="text-2xl font-bold text-white">142</div>
-             <div className="text-xs text-gray-400">运行天数</div>
-           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+// TwinView 已被 TwinDashboard 替代
 
 // MonitorView 已移除，被 MonitorDashboard 替代
 
@@ -147,13 +108,15 @@ const App: React.FC = () => {
              {currentPath === '/admin/tools' && <KnifeManagement />}
              {currentPath === '/admin/devices' && <DeviceManagement />}
              {currentPath === '/admin/materials' && <MaterialManagement />}
-             {currentPath === '/admin/passwords' && <OperationPasswordManagement />} {/* 新增路由 */}
+             {currentPath === '/admin/passwords' && <OperationPasswordManagement />} 
+             {currentPath === '/admin/performance' && <TeamPerformance />} {/* 新增路由 */}
              
              {/* 默认 dashboard */}
              {currentPath !== '/admin/tools' && 
               currentPath !== '/admin/devices' && 
               currentPath !== '/admin/materials' && 
-              currentPath !== '/admin/passwords' && <AdminDashboard />}
+              currentPath !== '/admin/passwords' && 
+              currentPath !== '/admin/performance' && <AdminDashboard />}
           </AdminLayoutWithRouting>
         </div>
       )
@@ -166,7 +129,7 @@ const App: React.FC = () => {
       onNavigate={handleNavigate}
       title={getModuleTitle(currentModule)}
     >
-      {currentModule === ModuleType.DIGITAL_TWIN && <TwinView />}
+      {currentModule === ModuleType.DIGITAL_TWIN && <TwinDashboard />}
       {currentModule === ModuleType.MONITORING && <MonitorDashboard />}
       {currentModule === ModuleType.ANALYSIS && <AnalysisView />}
     </ImmersiveLayout>

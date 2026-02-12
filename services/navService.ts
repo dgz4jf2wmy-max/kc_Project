@@ -37,7 +37,8 @@ export const ADMIN_SIDEBAR_MENU: NavItem[] = [
   { id: 'dev-mgt', label: '设备管理', module: ModuleType.ADMIN, path: '/admin/devices' },
   { id: 'tool-mgt', label: '刀盘管理', module: ModuleType.ADMIN, path: '/admin/tools' },
   { id: 'mat-mgt', label: '物料管理', module: ModuleType.ADMIN, path: '/admin/materials' },
-  { id: 'pwd-mgt', label: '操作口令', module: ModuleType.ADMIN, path: '/admin/passwords' }, // 新增
+  { id: 'team-perf', label: '班组绩效', module: ModuleType.ADMIN, path: '/admin/performance' }, // 新增
+  { id: 'pwd-mgt', label: '操作口令', module: ModuleType.ADMIN, path: '/admin/passwords' },
   { id: 'user-mgt', label: '人员权限', module: ModuleType.ADMIN, path: '/admin/users' },
   { id: 'logs', label: '系统日志', module: ModuleType.ADMIN, path: '/admin/logs' },
 ];
