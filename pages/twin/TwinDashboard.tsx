@@ -319,45 +319,62 @@ const TwinDashboard: React.FC = () => {
     <div className="w-full h-full bg-black text-slate-100 overflow-hidden relative font-sans select-none">
       
       {/* ================= BACKGROUND LAYER ================= */}
+      {/* 
+          核心修正：
+          1. 父容器背景为纯黑 (bg-black)，保证四周无图片。
+          2. 图片容器 (z-0) 严格限制在中央视窗区域，不覆盖四周图表。
+             - Left: 360px (为左侧列表预留空间)
+             - Right: 340px (为右侧图表预留空间)
+             - Bottom: 260px (为底部图表预留空间)
+             - Top: 100px (为标题栏预留空间)
+          3. 图片容器使用 Mask 实现边缘羽化，自然融入黑色背景。
+          4. 修正 Mask 为矩形渐变 (linear-gradient composite) 而非圆形/椭圆，以符合用户 "矩形中心" 的要求。
+      */}
       <div className="absolute inset-0 z-0 bg-black">
-         {/* 1. 真实背景图层 */}
+         {/* 1. 中央视窗图片容器 */}
          <div 
-            className="absolute inset-0 opacity-40"
+            className="absolute z-0"
             style={{ 
-               backgroundImage: 'url("https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2670&auto=format&fit=crop")',
-               backgroundSize: 'cover',
-               backgroundPosition: 'center'
+               top: '100px',
+               bottom: '260px',
+               left: '360px',
+               right: '340px',
+               // Mask: 使用双向线性渐变交集，创建矩形羽化效果 (Rectangular Vignette)
+               // 15% 的边缘渐变区域
+               maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%), linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%)',
+               maskComposite: 'intersect',
+               WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%), linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%)',
+               WebkitMaskComposite: 'source-in', // WebKit 下 source-in 等同于 intersect
             }}
-         ></div>
-         
-         {/* 2. 备用网格地板 */}
-         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0f_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0f_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" style={{ transform: 'perspective(1000px) rotateX(60deg) translateY(-100px) scale(2)' }}></div>
-
-         {/* 3. 占位提示文字 */}
-         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/5 text-6xl font-black tracking-widest pointer-events-none border-4 border-white/5 p-10 rounded-xl">
-            3D SCENE AREA
+         >
+             <div 
+                className="w-full h-full"
+                style={{
+                   backgroundImage: 'url("https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2670&auto=format&fit=crop")',
+                   backgroundSize: 'cover',
+                   backgroundPosition: 'center',
+                   opacity: 1
+                }}
+             ></div>
          </div>
-
-         {/* 4. 暗角遮罩 */}
-         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none"></div>
-         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-black/80 pointer-events-none"></div>
       </div>
 
       {/* ================= 顶部中央通知 ================= */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30">
          {/* 通知改为无边框深色背景 */}
-         <div className="bg-black/90 px-6 py-2 rounded-full flex items-center gap-2 shadow-lg">
+         <div className="bg-black/90 px-6 py-2 rounded-full flex items-center gap-2 shadow-lg border border-white/10">
             <AlertCircle size={16} className="text-yellow-500 animate-pulse" />
             <span className="text-sm font-bold tracking-wide text-white">当前叩解度高于标准值，建议适当降低磨浆功率</span>
          </div>
       </div>
 
-      {/* ================= 3D设备层 (悬浮) ================= */}
+      {/* ================= 3D设备层 (悬浮在视窗区域) ================= */}
       <div className="absolute inset-0 z-10 pointer-events-none">
           <div className="absolute top-0 left-0 w-full h-full pointer-events-auto">
              {machines.map((m, i) => {
-                 // 水平分布: 15% -> 85%
-                 const leftPos = 18 + i * 16; 
+                 // 调整设备水平分布，使其集中在视窗区域 (25% -> 75%)
+                 // 原来是 18 + i*16，现在调整为更紧凑一点，适配中间视窗
+                 const leftPos = 25 + i * 12.5; 
                  return (
                     <div key={m.id} className="absolute" style={{ top: '45%', left: `${leftPos}%` }}>
                         <MachineCard data={m} />
@@ -369,14 +386,14 @@ const TwinDashboard: React.FC = () => {
 
       {/* ================= HUD LAYOUT (Absolute Positioning) ================= */}
       
-      {/* 1. 左侧面板 (HUD) */}
+      {/* 1. 左侧面板 (HUD) - 背景纯黑 */}
       <div className="absolute top-20 left-4 w-[340px] z-20 flex flex-col gap-4">
          {stages.map((stage, idx) => (
             <StageCard key={idx} data={stage} isNext={idx > 0} />
          ))}
       </div>
 
-      {/* 2. 右侧面板 (HUD) */}
+      {/* 2. 右侧面板 (HUD) - 背景纯黑 */}
       <div className="absolute top-20 right-4 w-[320px] z-20 flex flex-col gap-4">
          <ChartBox title="开机稳定时间分布" height="h-[200px]">
             <div ref={stabilityRef} className="w-full h-full" />
@@ -387,7 +404,7 @@ const TwinDashboard: React.FC = () => {
          </ChartBox>
       </div>
 
-      {/* 3. 底部面板 (GRID 布局 - 严格对齐) */}
+      {/* 3. 底部面板 (GRID 布局) - 背景纯黑 */}
       <div className="absolute bottom-4 left-4 right-4 h-[240px] z-20 grid grid-cols-4 gap-4">
          
          {/* Col 1: 测量值趋势 (上下两图) */}
