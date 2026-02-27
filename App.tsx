@@ -14,6 +14,8 @@ import { OperationPasswordManagement } from './pages/admin/OperationPasswordMana
 import { TeamPerformance } from './pages/admin/TeamPerformance'; // 新增：引入班组绩效页面
 import TwinDashboard from './pages/twin/TwinDashboard'; // 引入新的孪生大屏组件
 
+import { AnalysisDashboard } from './pages/analysis/AnalysisDashboard';
+
 // ----------------------------------------------------------------------
 // 子页面组件
 // ----------------------------------------------------------------------
@@ -21,31 +23,6 @@ import TwinDashboard from './pages/twin/TwinDashboard'; // 引入新的孪生大
 // TwinView 已被 TwinDashboard 替代
 
 // MonitorView 已移除，被 MonitorDashboard 替代
-
-const AnalysisView: React.FC = () => (
-  <div className="h-full bg-system-card/30 rounded-2xl p-8 border border-white/5">
-     <div className="flex justify-between items-center mb-8">
-       <div className="flex space-x-4">
-         <select className="bg-system-bg border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-system-primary">
-           <option>最近7天</option>
-           <option>最近30天</option>
-         </select>
-         <select className="bg-system-bg border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-system-primary">
-           <option>能耗分析</option>
-           <option>产量分析</option>
-         </select>
-       </div>
-       <SystemButton variant="primary" className="py-2 text-sm">导出报告</SystemButton>
-     </div>
-     
-     {/* 占位图表区 */}
-     <div className="w-full h-[60%] border-2 border-dashed border-gray-700 rounded-xl flex items-center justify-center text-gray-500 flex-col">
-        <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
-        <span>此处预留 ECharts / Recharts 渲染区域</span>
-        <span className="text-xs mt-2 text-gray-600">ID: chart-analysis-main</span>
-     </div>
-  </div>
-);
 
 // 默认的 Admin 仪表盘 (当没有特定子路由匹配时)
 // 修正为浅色主题适配
@@ -131,7 +108,7 @@ const App: React.FC = () => {
     >
       {currentModule === ModuleType.DIGITAL_TWIN && <TwinDashboard />}
       {currentModule === ModuleType.MONITORING && <MonitorDashboard />}
-      {currentModule === ModuleType.ANALYSIS && <AnalysisView />}
+      {currentModule === ModuleType.ANALYSIS && <AnalysisDashboard />}
     </ImmersiveLayout>
   );
 };

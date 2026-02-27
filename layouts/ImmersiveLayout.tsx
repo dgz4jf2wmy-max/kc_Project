@@ -26,7 +26,8 @@ export const ImmersiveLayout: React.FC<ImmersiveLayoutProps> = ({
   title 
 }) => {
   // 模式判定
-  const isLightMode = currentModule === ModuleType.MONITORING;
+  // 监测工作台 和 数据分析 均使用亮色模式
+  const isLightMode = currentModule === ModuleType.MONITORING || currentModule === ModuleType.ANALYSIS;
   const isTwinMode = currentModule === ModuleType.DIGITAL_TWIN;
 
   // 动态背景类
@@ -54,7 +55,8 @@ export const ImmersiveLayout: React.FC<ImmersiveLayoutProps> = ({
       <TopHudNav currentModule={currentModule} onNavigate={onNavigate} isLightMode={isLightMode} />
 
       {/* 主要内容区域 - 调整顶部内边距以避开 Header */}
-      <main className="flex-1 z-10 p-8 pt-28 h-full overflow-hidden">
+      {/* 修正：孪生模式移除 Padding (p-0)，其他模式保持 p-8 pt-28 */}
+      <main className={`flex-1 z-10 h-full overflow-hidden ${isTwinMode ? 'p-0' : 'p-8 pt-28'}`}>
         {children}
       </main>
     </div>

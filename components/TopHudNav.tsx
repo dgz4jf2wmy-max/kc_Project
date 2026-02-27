@@ -51,10 +51,11 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
   const dividerColor = isLightMode ? 'bg-gray-300' : 'bg-white/10';
   
   // 头部背景色逻辑：
-  // 1. 孪生模式 (TwinMode): 强制使用系统深蓝背景 (bg-system-bg)，因为页面主体是黑色的。
-  // 2. 其他模式: 保持透明 (pointer-events-none 让下方背景透出来)。
+  // 1. 孪生模式 (TwinMode): 改为透明背景，让下方的大屏背景图片能够透出来，避免割裂感。
+  //    (依赖 TwinDashboard 的顶部黑色渐变来保证文字对比度)
+  // 2. 其他模式: 保持原样 (Monitor 模式下通常背景较亮)
   const headerBgClass = isTwinMode 
-    ? 'bg-system-bg shadow-sm border-b border-white/5' 
+    ? 'bg-transparent' // 移除 bg-system-bg，实现通透效果
     : '';
 
   // 下拉框触发器样式

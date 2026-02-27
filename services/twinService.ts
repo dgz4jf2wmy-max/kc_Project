@@ -1,5 +1,7 @@
 
-import { ApiResponse } from '../types';
+import { ApiResponse, DailyTeamQualifiedRate } from '../types';
+import { fetchCurrentProcessIndicator, fetchMonitorData } from './monitorMockService'; // Import fetchMonitorData
+import { fetchDailyQualifiedRates } from './teamPerformanceService';
 
 // --- 类型定义 ---
 
@@ -44,55 +46,84 @@ export interface TwinAbnormalRecord {
 
 // --- MOCK 数据 ---
 
-// 1. 左侧阶段数据
+// 1. 左侧阶段数据 (关联 ProcessIndicator 实体)
 export const fetchTwinStages = async (): Promise<ApiResponse<TwinStageData[]>> => {
+  // 获取当前工艺指标
+  const indicatorRes = await fetchCurrentProcessIndicator();
+  const current = indicatorRes.data;
+
+  // 模拟计算下一个阶段的时间 (例如：当前时间 + 4小时)
+  // 这里简单模拟一个未来的时间点
+  const nextTimeStr = '2025-09-12 18:00'; 
+
   return {
     code: 200,
     message: 'success',
     data: [
       {
         title: '当前阶段',
-        time: '2025-9-12 16:32',
-        productCode: '7T',
-        freeness: { value: 54, min: 53, max: 55 },
-        fiberLength: { value: 0.8, min: 0.75, max: 0.85 }
+        time: current.startTime, // 关联实体字段
+        productCode: current.productCode, // 关联实体字段
+        freeness: { 
+            value: current.freeness, 
+            min: current.freeness - current.freenessDeviation, 
+            max: current.freeness + current.freenessDeviation 
+        },
+        fiberLength: { 
+            value: current.fiberLength, 
+            min: parseFloat((current.fiberLength - current.fiberLengthDeviation).toFixed(2)), 
+            max: parseFloat((current.fiberLength + current.fiberLengthDeviation).toFixed(2)) 
+        }
       },
       {
         title: '下阶段',
-        time: '2025-9-12 18:00',
-        productCode: '7T',
-        freeness: { value: 55, min: 54, max: 56 },
-        fiberLength: { value: 0.8, min: 0.75, max: 0.85 }
+        time: nextTimeStr,
+        productCode: current.productCode, // 假设下阶段产品不变
+        freeness: { value: 55, min: 54, max: 56 }, // 下阶段暂使用 Mock 数据
+        fiberLength: { value: 0.8, min: 0.75, max: 0.85 } // 下阶段暂使用 Mock 数据
       }
     ]
   };
 };
 
-// 2. 中间设备状态 (5台磨浆机)
+// 2. 中间设备状态 (数据联动：从 MonitorMockService 获取实时状态)
 export const fetchTwinMachines = async (): Promise<ApiResponse<TwinMachineStatus[]>> => {
+  // 调用监测看板的数据源，确保数据一致性
+  const monitorRes = await fetchMonitorData();
+  const refiners = monitorRes.data.refiners;
+
+  // 转换为 TwinMachineStatus 格式
+  // 注意：监测看板数据通常是 1-5，孪生大屏布局是从左到右 5-1 (根据之前布局逻辑保留)
+  const machines: TwinMachineStatus[] = refiners.map(r => ({
+    id: r.id,
+    name: r.name.replace('精浆', '磨浆机'), // 统一名称格式
+    status: r.status === 'running' ? 'run' : 'stop',
+    pressureIn: r.pIn,
+    pressureOut: r.pOut,
+    diff: r.dp,
+    gap: r.gapCurrent,
+    model: r.discModel,
+    power: Math.round(r.power)
+  }));
+
+  // 反转数组以保持大屏原有的 5 -> 1 视觉排列顺序
   return {
     code: 200,
     message: 'success',
-    data: [
-      { id: '5', name: '5#磨浆机', status: 'run', pressureIn: -0.04, pressureOut: 0.01, diff: 0.03, gap: 0.18, model: 'JQJC-01-XCI', power: 180 },
-      { id: '4', name: '4#磨浆机', status: 'run', pressureIn: -0.05, pressureOut: 0.01, diff: 0.06, gap: 0.16, model: 'JQJC-01-TC2', power: 180 },
-      { id: '3', name: '3#磨浆机', status: 'run', pressureIn: 0.00, pressureOut: 0.00, diff: 0.00, gap: 0.22, model: 'TC', power: 180 },
-      { id: '2', name: '2#磨浆机', status: 'run', pressureIn: 0.02, pressureOut: 0.02, diff: 0.00, gap: 0.13, model: 'TM', power: 180 },
-      { id: '1', name: '1#磨浆机', status: 'run', pressureIn: -0.09, pressureOut: 0.03, diff: 0.06, gap: 0.15, model: 'TS', power: 180 },
-    ]
+    data: machines.reverse()
   };
 };
 
-// 3. 右上：开机稳定时间分布
+// 3. 右上：开机稳定时间分布 (修正：与班组绩效模块的数据桶保持一致)
 export const fetchStabilityDistribution = async (): Promise<ApiResponse<TwinChartData[]>> => {
   return {
     code: 200,
     message: 'success',
     data: [
-      { label: '60分钟以上', value: 9, color: '#f59e0b' },
-      { label: '50分钟', value: 32, color: '#3b82f6' },
-      { label: '20-40分钟', value: 56, color: '#a3e635' },
-      { label: '0-20分钟', value: 31, color: '#6366f1' },
+      { label: '0-20分钟', value: 31, color: '#5b75f0' },   // Blue
+      { label: '20-40分钟', value: 56, color: '#b0e34f' },  // Lime
+      { label: '40-60分钟', value: 32, color: '#94a3b8' },  // Grey (Lightened for dark mode visibility)
+      { label: '60分钟以上', value: 9, color: '#ff9f57' },  // Orange
     ]
   };
 };
@@ -133,15 +164,15 @@ export const fetchTrendData = async (type: 'freeness' | 'fiber'): Promise<ApiRes
 };
 
 // 6. 底部：合格率统计 (Line - Multi)
-export const fetchQualifiedRates = async (): Promise<ApiResponse<any>> => {
+// 关联 DailyTeamQualifiedRate 实体类，调用 TeamPerformanceService 获取统一数据
+export const fetchQualifiedRates = async (): Promise<ApiResponse<DailyTeamQualifiedRate[]>> => {
+  const response = await fetchDailyQualifiedRates();
+  // 截取最近 7 天数据用于大屏展示
+  const recentData = response.data.slice(-7);
   return {
     code: 200,
     message: 'success',
-    data: {
-      freeness: [96, 97, 98.5, 97, 98, 97.5, 99], // Mock 7 days
-      fiber: [97, 97.5, 97, 98, 98.5, 98, 99],
-      dates: ['4-10', '4-11', '4-12', '4-13', '4-14', '4-15', '4-16']
-    }
+    data: recentData
   };
 };
 

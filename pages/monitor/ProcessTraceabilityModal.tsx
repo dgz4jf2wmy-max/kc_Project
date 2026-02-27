@@ -53,6 +53,24 @@ const getSmoothPath = (data: any[], width: number, height: number, min: number, 
   }, '');
 };
 
+const scrollbarStyle = `
+  /* Override global dark scrollbars for this modal */
+  .modal-light-scroll ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .modal-light-scroll ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .modal-light-scroll ::-webkit-scrollbar-thumb {
+    background: rgba(203, 213, 225, 0.6);
+    border-radius: 3px;
+  }
+  .modal-light-scroll ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.8);
+  }
+`;
+
 // --- Sub-Components ---
 
 // 1. 图表组件 (增强版：支持 Zoom, Tooltip, Standard, Linking, Axis)
@@ -413,7 +431,7 @@ const TimeRangeSlider: React.FC<TimeRangeSliderProps> = ({ range, onChange }) =>
   }, [isDragging, range, onChange]);
 
   return (
-    <div className="w-full h-full px-3 pb-3 pt-2">
+    <div className="w-full px-4 py-3">
        <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex gap-4">
              <div className="flex items-center gap-2 text-xs">
@@ -547,18 +565,18 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
         </button>
       }
     >
+      <style>{scrollbarStyle}</style>
       {/* 
          LAYOUT FIX: 
-         1. 设置固定高度 h-[65vh] (减小高度)，确保在 StandardModal (max-h-85vh) 内部能够撑开并启用内部滚动，避免父级滚动。
-            这预留了约 20vh 的空间给 Header 和 Footer，防止底部内容（时间轴）被遮挡。
-         2. 中间区域采用 flex-col 布局，图表区域 flex-1 overflow-auto，时间轴 absolute bottom-0 悬浮。
-         3. 右侧区域拆分为左右两个独立滚动区。
+         1. 设置高度为 calc(85vh - 140px) 确保内容完全适应 StandardModal 的 max-h-[85vh] 限制，
+            预留出 Header 和 Footer 的高度，避免触发 modal body 的滚动条，从而防止底部时间轴被遮挡。
+         2. 中间区域采用 flex-col 布局，图表区域 flex-1 overflow-auto，时间轴 absolute bottom-4 悬浮。
       */}
-      <div className="flex h-[65vh] overflow-hidden -m-6 bg-slate-50">
+      <div className="flex h-[calc(85vh-140px)] min-h-[450px] overflow-hidden -m-6 bg-slate-50 modal-light-scroll">
         
         {/* 左侧：配置区 (固定宽度，独立滚动) */}
         <div className="w-[18%] min-w-[240px] bg-white border-r border-slate-200 flex flex-col h-full z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-           <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+           <div className="flex-1 overflow-y-auto p-4">
               {/* 传入标准实体数据 */}
               <StandardCard data={MOCK_RETRO_STANDARD} />
               <div className="mt-4">
@@ -604,8 +622,8 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
 
         {/* 中间：图表分析区 (独立滚动 + 底部悬浮) */}
         <div className="flex-1 flex flex-col h-full relative min-w-0 bg-slate-50/50">
-           {/* 图表滚动区 (增加底部 padding 以避开悬浮时间轴) */}
-           <div className="flex-1 overflow-y-auto p-4 pb-[80px] space-y-4 custom-scrollbar scroll-smooth">
+           {/* 图表滚动区 */}
+           <div className="flex-1 overflow-y-auto p-4 pb-[100px] space-y-4 scroll-smooth">
               {activeParams.map(id => {
                  const config = PARAM_CONFIGS.find(p => p.id === id);
                  return config ? (
@@ -627,7 +645,7 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
            </div>
 
            {/* 底部悬浮时间控制 (Absolute定位，固定在底部) */}
-           <div className="absolute bottom-0 left-0 right-0 h-[60px] z-20 bg-white/90 backdrop-blur border-t border-slate-200 shadow-[-4px_0_20px_rgba(0,0,0,0.05)]">
+           <div className="absolute bottom-4 left-4 right-4 z-20 bg-white rounded-xl border border-blue-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
               <TimeRangeSlider range={viewRange} onChange={setViewRange} />
            </div>
         </div>
@@ -647,7 +665,7 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
                  </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-4">
                   {/* 1. 进退刀汇总 */}
                   <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">
                     <Activity size={12}/> 进退刀汇总
@@ -686,8 +704,7 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
 
                   {/* 2. 操作记录 */}
                   <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex justify-between items-center">
-                     <div className="flex items-center gap-2"><ListIcon size={12}/> 操作记录流</div>
-                     <span className="text-[10px] font-normal normal-case bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-full shadow-sm">共 {RECORD_DETAILS.logs.length} 条</span>
+                     <div className="flex items-center gap-2"><ListIcon size={12}/> 操作记录</div>
                   </h4>
                   
                   {/* Table Header */}
@@ -764,7 +781,7 @@ export const ProcessTraceabilityModal: React.FC<ProcessTraceabilityModalProps> =
                  </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
                  {RECORD_LIST.map((record) => {
                     const hasAuto = record.source.includes('自动操作');
                     const hasManual = record.source.includes('人工操作');

@@ -49,7 +49,8 @@ import { GapTrendModal } from './GapTrendModal'; // 引入间隙趋势弹窗
 import { MaterialFeedingModal } from './MaterialFeedingModal'; // 引入物料投料弹窗
 import { PasswordVerificationModal } from './PasswordVerificationModal'; // 新增：引入口令验证弹窗
 import { KnifeSelectionModal } from './KnifeSelectionModal'; // 新增：引入刀盘选择弹窗
-import { ProcessTraceabilityModal } from './ProcessTraceabilityModal'; // 新增：引入工艺回溯弹窗
+import { ProcessRecordModal } from './ProcessRecordModal'; // 新增：引入工艺回溯弹窗
+import { ProcessTraceabilityModal } from './ProcessTraceabilityModal'; // 恢复：引入工艺回溯弹窗
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -984,7 +985,7 @@ const FunctionShortcuts = ({ onOpenFeed, onOpenTraceability }: { onOpenFeed: () 
 };
 
 // --- 9. 工艺标准卡片 ---
-const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
+const CraftStandardCard = ({ onEdit, onHistory }: { onEdit?: () => void, onHistory?: () => void }) => {
   const [standard, setStandard] = useState<ProcessIndicator | null>(null);
 
   useEffect(() => {
@@ -1002,12 +1003,22 @@ const CraftStandardCard = ({ onEdit }: { onEdit?: () => void }) => {
           <h2 className="font-bold text-slate-700 text-sm flex items-center gap-2">
             <FileText size={16} className="text-purple-600"/> 工艺标准
           </h2>
-          {/* 编辑按钮：点击触发下发弹窗 */}
-          <Edit3 
-            size={14} 
-            className="text-slate-400 cursor-pointer hover:text-blue-500 transition-colors"
-            onClick={onEdit} 
-          />
+          <div className="flex items-center gap-3">
+             {/* 历史记录按钮 */}
+             <History 
+               size={14} 
+               className="text-slate-400 cursor-pointer hover:text-blue-500 transition-colors"
+               onClick={onHistory}
+               title="查看下发记录"
+             />
+             {/* 编辑按钮：点击触发下发弹窗 */}
+             <Edit3 
+               size={14} 
+               className="text-slate-400 cursor-pointer hover:text-blue-500 transition-colors"
+               onClick={onEdit} 
+               title="下发新指标"
+             />
+          </div>
       </div>
       <div className="p-3 flex flex-col gap-3">
           <div className="flex justify-between items-center">
@@ -1288,6 +1299,9 @@ export const MonitorDashboard = () => {
 
   // 新增：控制间隙趋势弹窗
   const [gapTrendData, setGapTrendData] = useState<{name: string, model: string} | null>(null);
+  const [isGapTrendModalOpen, setIsGapTrendModalOpen] = useState(false);
+  const [isMaterialFeedingModalOpen, setIsMaterialFeedingModalOpen] = useState(false);
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false); // 工艺下发记录弹窗
 
   // 场景控制：随机全停机 与 高功率演示
   const [scenario, setScenario] = useState<{ allStopped: boolean; overloadTargetId: string | null }>({
@@ -1399,7 +1413,10 @@ export const MonitorDashboard = () => {
               onOpenTraceability={() => setIsTraceabilityModalOpen(true)} 
            />
            <ShiftInfoCard />
-           <CraftStandardCard onEdit={() => setIsIndicatorModalOpen(true)} />
+           <CraftStandardCard 
+              onEdit={() => setIsIndicatorModalOpen(true)} 
+              onHistory={() => setIsRecordModalOpen(true)}
+           />
            <div className="flex-1 min-h-[200px] overflow-hidden">
               <ProductionExceptionList onViewMore={() => setIsExceptionModalOpen(true)} />
            </div>
@@ -1565,6 +1582,11 @@ export const MonitorDashboard = () => {
           onClose={() => { setIsKnifeSelectionModalOpen(false); setTargetDeviceForChange(null); }}
           onSuccess={onKnifeChangedSuccess}
         />
+      )}
+      
+      {/* 新增：工艺下发记录弹窗 */}
+      {isRecordModalOpen && (
+        <ProcessRecordModal onClose={() => setIsRecordModalOpen(false)} />
       )}
     </div>
   );
