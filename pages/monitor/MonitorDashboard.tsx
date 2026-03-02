@@ -1268,6 +1268,25 @@ const BladeHistoryList = ({ onViewMore }: { onViewMore: () => void }) => {
   );
 };
 
+// --- 13. Scrollbar Style ---
+const scrollbarStyle = `
+  /* Override global dark scrollbars for this page */
+  .page-light-scroll ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .page-light-scroll ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .page-light-scroll ::-webkit-scrollbar-thumb {
+    background: rgba(203, 213, 225, 0.6);
+    border-radius: 3px;
+  }
+  .page-light-scroll ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.8);
+  }
+`;
+
 export const MonitorDashboard = () => {
   // 状态：控制生产异常详情弹窗
   const [isExceptionModalOpen, setIsExceptionModalOpen] = useState(false);
@@ -1403,7 +1422,8 @@ export const MonitorDashboard = () => {
   const currentFiberSoft = 0.82; // T-0
 
   return (
-    <div className="h-full w-full flex flex-col font-sans text-slate-800">
+    <div className="h-full w-full flex flex-col font-sans text-slate-800 page-light-scroll">
+      <style>{scrollbarStyle}</style>
       
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* 左侧边栏 - 20% */}
@@ -1489,7 +1509,7 @@ export const MonitorDashboard = () => {
           </section>
 
           {/* 下半部分：趋势与记录 */}
-          <div className="flex gap-4 h-[280px] flex-none">
+          <div className="flex gap-4 flex-1 min-h-0">
              {/* 趋势图 (独立卡片) */}
              <section className="flex-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
                 <div className="flex justify-between items-center mb-2">
