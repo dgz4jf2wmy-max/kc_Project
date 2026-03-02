@@ -23,10 +23,74 @@ import {
 } from 'lucide-react';
 import { fetchMultiAnalysisData, AnalysisDataPoint } from '../../services/analysisDataService';
 import { RECORD_LIST } from '../../services/traceabilityService';
-import * as ecStat from 'echarts-stat';
 
-// Register transform for regression
-echarts.registerTransform(ecStat.transform.regression);
+// Helper for Linear Regression (Least Squares)
+// y = kx + b
+// Returns { k, b, rSquared, points: [[x, y], ...] }
+const calculateLinearRegression = (data: number[][]) => {
+  const n = data.length;
+  if (n < 2) return null;
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+
+  for (let i = 0; i < n; i++) {
+    const x = data[i][0];
+    const y = data[i][1];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+    sumYY += y * y;
+  }
+
+  const k = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const b = (sumY - k * sumX) / n;
+
+  // Calculate R-Squared
+  // R^2 = 1 - (SS_res / SS_tot)
+  // SS_res = sum((y_i - (kx_i + b))^2)
+  // SS_tot = sum((y_i - mean_y)^2)
+  
+  const meanY = sumY / n;
+  let ssRes = 0;
+  let ssTot = 0;
+
+  const regressionPoints = [];
+
+  // Find min and max X to draw the line across the range
+  let minX = Infinity;
+  let maxX = -Infinity;
+
+  for (let i = 0; i < n; i++) {
+    const x = data[i][0];
+    const y = data[i][1];
+    const yPred = k * x + b;
+    
+    ssRes += Math.pow(y - yPred, 2);
+    ssTot += Math.pow(y - meanY, 2);
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+  }
+
+  const rSquared = 1 - (ssRes / ssTot);
+
+  // Generate start and end points for the line
+  regressionPoints.push([minX, k * minX + b]);
+  regressionPoints.push([maxX, k * maxX + b]);
+
+  return {
+    k,
+    b,
+    rSquared,
+    expression: `y = ${k.toFixed(4)}x + ${b.toFixed(4)}`,
+    points: regressionPoints
+  };
+};
 
 const DEVICES = ['1', '2', '3', '4', '5'];
 const PARAMS = [
@@ -420,16 +484,20 @@ export const AnalysisDashboard: React.FC = () => {
             scatterData.push([xParamData[i], yParamData[i]]);
         }
 
+        // Calculate Regression Manually
+        const regressionResult = calculateLinearRegression(scatterData);
+
+        // Dataset 0: Scatter Points
         dataset.push({
             source: scatterData
         });
         
-        dataset.push({
-            transform: {
-                type: 'ecStat:regression',
-                config: { method: 'linear', formulaOn: 'end' }
-            }
-        });
+        // Dataset 1: Regression Line Points (if valid)
+        if (regressionResult) {
+           dataset.push({
+               source: regressionResult.points
+           });
+        }
 
         const xParamInfo = PARAMS.find(p => p.id === analysisConfig.scatterX);
         const yParamInfo = PARAMS.find(p => p.id === analysisConfig.scatterY);
@@ -446,6 +514,7 @@ export const AnalysisDashboard: React.FC = () => {
 
         titles.push({
             text: `线性拟合: ${xParamInfo?.name} vs ${yParamInfo?.name}`,
+            subtext: regressionResult ? `${regressionResult.expression}, R² = ${regressionResult.rSquared.toFixed(4)}` : '',
             top: 10,
             left: 'center'
         });
@@ -471,17 +540,23 @@ export const AnalysisDashboard: React.FC = () => {
             itemStyle: { color: '#3b82f6', opacity: 0.6 }
         });
 
-        series.push({
-            name: 'line',
-            type: 'line',
-            datasetIndex: 1,
-            symbolSize: 0.1,
-            symbol: 'circle',
-            label: { show: true, fontSize: 14, color: '#ef4444' },
-            labelLayout: { dx: -20 },
-            encode: { label: 2, tooltip: 1 },
-            lineStyle: { color: '#ef4444', width: 2 }
-        });
+        if (regressionResult) {
+            series.push({
+                name: 'line',
+                type: 'line',
+                datasetIndex: 1,
+                symbolSize: 0, // No symbols for line
+                symbol: 'none',
+                label: { 
+                    show: true, 
+                    formatter: regressionResult.expression,
+                    fontSize: 14, 
+                    color: '#ef4444',
+                    position: 'end'
+                },
+                lineStyle: { color: '#ef4444', width: 2, type: 'dashed' }
+            });
+        }
 
     } else {
         // Mode: Standard Time Series (with Normalization / Time Shift / Rate of Change)
