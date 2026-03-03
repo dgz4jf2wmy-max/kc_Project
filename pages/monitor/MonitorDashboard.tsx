@@ -1086,10 +1086,32 @@ const CraftStandardCard = ({ onEdit, onHistory }: { onEdit?: () => void, onHisto
 // --- 10. ProductionExceptionList ---
 const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => {
   const [exceptions, setExceptions] = useState<ProductionExceptionRecord[]>([]);
+  const [isReporting, setIsReporting] = useState(false);
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+    duration: ''
+  });
 
   useEffect(() => {
     fetchProductionExceptions().then(res => setExceptions(res.data));
   }, []);
+
+  const handleSubmit = () => {
+    if (!formData.description || !formData.duration) return;
+
+    const newRecord: ProductionExceptionRecord = {
+      id: Date.now().toString(),
+      date: formData.date,
+      team: '甲', // 自动获取班组，模拟为"甲"班
+      description: formData.description,
+      duration: parseFloat(formData.duration) || 0,
+    };
+
+    setExceptions([newRecord, ...exceptions]);
+    setIsReporting(false);
+    setFormData(prev => ({ ...prev, description: '', duration: '' }));
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
@@ -1097,13 +1119,64 @@ const ProductionExceptionList = ({ onViewMore }: { onViewMore: () => void }) => 
           <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
              <AlertTriangle size={16} className="text-red-500"/> 生产异常
           </h3>
-          <button 
-            className="text-[10px] text-slate-400 hover:text-blue-500 transition-colors cursor-pointer"
-            onClick={onViewMore}
-          >
-            查看更多 &gt;
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              className="flex items-center gap-1 text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors"
+              onClick={() => setIsReporting(!isReporting)}
+            >
+              <PackagePlus size={12}/> {isReporting ? '取消填报' : '填报异常'}
+            </button>
+            <button 
+              className="text-[10px] text-slate-400 hover:text-blue-500 transition-colors cursor-pointer"
+              onClick={onViewMore}
+            >
+              查看更多 &gt;
+            </button>
+          </div>
        </div>
+       
+       {/* 填报表单区域 */}
+       {isReporting && (
+         <div className="p-3 bg-blue-50/50 border-b border-blue-100 flex flex-col gap-2 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex gap-2">
+              <input 
+                type="date" 
+                className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
+                value={formData.date}
+                onChange={e => setFormData({...formData, date: e.target.value})}
+              />
+              <div className="flex items-center gap-1 bg-slate-100 px-2 rounded border border-slate-200 text-xs text-slate-500 select-none cursor-not-allowed" title="自动获取">
+                <Users size={12}/> 甲班
+              </div>
+            </div>
+            <textarea 
+              placeholder="描述异常情况..." 
+              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 resize-none h-16"
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+            />
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 flex items-center gap-1 bg-white border border-slate-200 rounded px-2 py-1">
+                <Clock size={12} className="text-slate-400"/>
+                <input 
+                  type="number" 
+                  placeholder="持续时长(h)" 
+                  className="flex-1 text-xs outline-none w-full"
+                  value={formData.duration}
+                  onChange={e => setFormData({...formData, duration: e.target.value})}
+                />
+              </div>
+              <button 
+                className="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSubmit}
+                disabled={!formData.description || !formData.duration}
+              >
+                提交
+              </button>
+            </div>
+         </div>
+       )}
+
        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {exceptions.map(ex => (
              <div key={ex.id} className="bg-white border border-slate-100 rounded-lg p-3 text-xs hover:border-red-200 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-2">
@@ -1303,6 +1376,8 @@ export const MonitorDashboard = () => {
   const [targetDeviceForChange, setTargetDeviceForChange] = useState<string | null>(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isKnifeSelectionModalOpen, setIsKnifeSelectionModalOpen] = useState(false);
+  // 新增：口令验证操作类型 ('KNIFE_CHANGE' | 'PROCESS_INDICATOR')
+  const [passwordActionType, setPasswordActionType] = useState<'KNIFE_CHANGE' | 'PROCESS_INDICATOR' | null>(null);
 
   // 新增：父组件获取工艺配置，以同步设备转向
   const [deviceConfigs, setDeviceConfigs] = useState<ProcessIndicatorDeviceConfig[]>([]);
@@ -1368,13 +1443,25 @@ export const MonitorDashboard = () => {
   // 换刀触发逻辑：第一步，点击触发，打开口令验证
   const initiateKnifeChange = (deviceId: string) => {
     setTargetDeviceForChange(deviceId);
+    setPasswordActionType('KNIFE_CHANGE');
     setIsPasswordModalOpen(true);
   };
 
-  // 换刀逻辑：第二步，口令验证成功，打开选择弹窗
+  // 工艺下发触发逻辑：第一步，点击触发，打开口令验证
+  const initiateIndicatorEdit = () => {
+    setPasswordActionType('PROCESS_INDICATOR');
+    setIsPasswordModalOpen(true);
+  };
+
+  // 口令验证成功，根据操作类型分发
   const onPasswordVerified = () => {
     setIsPasswordModalOpen(false);
-    setIsKnifeSelectionModalOpen(true);
+    if (passwordActionType === 'KNIFE_CHANGE') {
+      setIsKnifeSelectionModalOpen(true);
+    } else if (passwordActionType === 'PROCESS_INDICATOR') {
+      setIsIndicatorModalOpen(true);
+    }
+    setPasswordActionType(null);
   };
 
   // 换刀逻辑：第三步，选择并确认后，更新本地状态
@@ -1434,7 +1521,7 @@ export const MonitorDashboard = () => {
            />
            <ShiftInfoCard />
            <CraftStandardCard 
-              onEdit={() => setIsIndicatorModalOpen(true)} 
+              onEdit={initiateIndicatorEdit} 
               onHistory={() => setIsRecordModalOpen(true)}
            />
            <div className="flex-1 min-h-[200px] overflow-hidden">
@@ -1593,7 +1680,11 @@ export const MonitorDashboard = () => {
       {isPasswordModalOpen && (
         <PasswordVerificationModal 
           onSuccess={onPasswordVerified}
-          onClose={() => { setIsPasswordModalOpen(false); setTargetDeviceForChange(null); }}
+          onClose={() => { 
+            setIsPasswordModalOpen(false); 
+            setTargetDeviceForChange(null);
+            setPasswordActionType(null); 
+          }}
         />
       )}
       {isKnifeSelectionModalOpen && targetDeviceForChange && (

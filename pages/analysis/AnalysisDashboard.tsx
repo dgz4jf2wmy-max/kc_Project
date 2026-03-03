@@ -962,35 +962,77 @@ export const AnalysisDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* 2. 工艺参数 */}
+          {/* 2. 参数叠加选择 */}
           <div className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <LineChart size={16} className="text-slate-700"/>
-              <span className="font-bold text-slate-800">工艺参数</span>
+            <div className="flex items-center gap-2 mb-4">
+              <Sliders size={16} className="text-slate-700"/>
+              <span className="font-bold text-slate-800">参数叠加选择</span>
             </div>
-            <div className="space-y-2.5">
-              {PARAMS.map(param => {
-                const isActive = activeParams.includes(param.id);
-                return (
-                  <label 
-                    key={param.id} 
-                    className="flex items-center gap-2 cursor-pointer group"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toggleParam(param.id);
-                    }}
-                  >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                      isActive ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300 group-hover:border-blue-400'
-                    }`}>
-                      {isActive && <Check size={12} className="text-white"/>}
+
+            {/* 关键质量指标 */}
+            <div className="mb-6">
+              <div className="text-xs font-bold text-slate-400 mb-2">关键质量指标</div>
+              <div className="space-y-2">
+                {PARAMS.filter(p => ['beatingDegree', 'fiberLength'].includes(p.id)).map(param => {
+                  const isActive = activeParams.includes(param.id);
+                  return (
+                    <div 
+                      key={param.id}
+                      onClick={() => toggleParam(param.id)}
+                      className={`
+                        flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all select-none
+                        ${isActive 
+                          ? 'bg-blue-50 border-blue-200 shadow-sm' 
+                          : 'bg-transparent border-transparent hover:bg-slate-50'}
+                      `}
+                    >
+                      <div className={`
+                        w-5 h-5 rounded flex items-center justify-center transition-colors border
+                        ${isActive ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-slate-300'}
+                      `}>
+                        {isActive && <Check size={14} strokeWidth={3} />}
+                      </div>
+                      <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-slate-600'}`}>
+                        {param.name}
+                      </span>
                     </div>
-                    <span className={`text-sm ${isActive ? 'text-blue-600 font-medium' : 'text-slate-600'}`}>
-                      {param.name}
-                    </span>
-                  </label>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 工艺参数 */}
+            <div>
+              <div className="text-xs font-bold text-slate-400 mb-2">工艺参数</div>
+              <div className="space-y-2">
+                {PARAMS.filter(p => !['beatingDegree', 'fiberLength'].includes(p.id)).map(param => {
+                  const isActive = activeParams.includes(param.id);
+                  return (
+                    <div 
+                      key={param.id} 
+                      className={`
+                        flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all select-none
+                        ${isActive 
+                          ? 'bg-blue-50 border-blue-200 shadow-sm' 
+                          : 'bg-transparent border-transparent hover:bg-slate-50'}
+                      `}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleParam(param.id);
+                      }}
+                    >
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        isActive ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'
+                      }`}>
+                        {isActive && <Check size={14} className="text-white" strokeWidth={3} />}
+                      </div>
+                      <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-slate-600'}`}>
+                        {param.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
