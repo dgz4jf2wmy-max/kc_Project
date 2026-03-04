@@ -108,6 +108,7 @@ export interface MaterialBatchDetail {
   manufacturer: string;
   productCode: string;
   pulpType: string;
+  outboundTime?: string; // Added outboundTime
   quantity: number;
   whiteness: number;
   dust: number;

@@ -173,7 +173,7 @@ export const MaterialFeedingModal: React.FC<MaterialFeedingModalProps> = ({ onCl
                  <div className="w-10 text-center">选择</div>
                  <div className="flex-1 pl-2">批号</div>
                  <div className="w-32">厂家</div>
-                 <div className="w-24 text-right pr-2">浆种</div>
+                 <div className="w-28 text-right pr-2">出库时间</div>
               </div>
 
               {/* 列表主体 */}
@@ -208,10 +208,10 @@ export const MaterialFeedingModal: React.FC<MaterialFeedingModalProps> = ({ onCl
                               {item.manufacturer}
                            </div>
 
-                           {/* 浆种 (Tag) */}
-                           <div className="w-24 text-right pr-2">
-                              <span className="inline-block bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded border border-gray-200">
-                                {item.pulpType}
+                           {/* 出库时间 */}
+                           <div className="w-28 text-right pr-2">
+                              <span className="inline-block text-gray-500 text-[10px] font-mono">
+                                {item.outboundTime || '-'}
                               </span>
                            </div>
                         </div>
