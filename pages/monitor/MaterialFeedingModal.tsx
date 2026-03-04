@@ -341,9 +341,9 @@ export const MaterialFeedingModal: React.FC<MaterialFeedingModalProps> = ({ onCl
                           </span>
                        </div>
                        {record.batches.map(b => (
-                          <div key={b.id} className="text-[10px] text-gray-500 flex justify-between border-t border-gray-200/50 pt-1 mt-1 first:border-0 first:mt-0 first:pt-0">
-                             <span className="truncate w-24">{b.manufacturer}</span>
-                             {/* 隐藏投料量 */}
+                          <div key={b.id} className="text-[10px] text-gray-500 flex flex-col gap-0.5 border-t border-gray-200/50 pt-1.5 mt-1.5 first:border-0 first:mt-0 first:pt-0">
+                             <span className="font-mono font-bold text-slate-600">{b.batchNo}</span>
+                             <span className="truncate text-gray-400">{b.manufacturer}</span>
                           </div>
                        ))}
                     </div>
