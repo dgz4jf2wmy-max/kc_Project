@@ -15,7 +15,9 @@ import {
   Zap,
   Gauge,
   Droplet,
-  Percent
+  Percent,
+  RotateCw,
+  RotateCcw
 } from 'lucide-react';
 import { StandardModal } from '../../components/admin/StandardLayouts';
 import { 
@@ -523,6 +525,29 @@ const StandardCard = ({ data }: { data: ProcessIndicator }) => (
             {data.fiberLength} <span className="text-[10px] font-normal text-slate-400">±{data.fiberLengthDeviation}</span>
           </div>
         </div>
+      </div>
+      
+      {/* 刀盘转向 */}
+      <div className="bg-slate-50 p-2 rounded border border-slate-100">
+          <div className="text-[10px] text-slate-500 mb-2">刀盘转向</div>
+          <div className="flex justify-between px-1">
+            {data.deviceConfigs.map((config) => {
+              const isCW = config.rotation === '正转';
+              return (
+                <div key={config.deviceId} className="flex flex-col items-center gap-1.5">
+                  <div className={`
+                    w-7 h-7 rounded-full flex items-center justify-center border shadow-sm transition-all
+                    ${isCW 
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                      : 'bg-blue-50 text-blue-600 border-blue-200'}
+                  `}>
+                    {isCW ? <RotateCw size={14} /> : <RotateCcw size={14} />}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono font-bold">{config.deviceId}</span>
+                </div>
+              );
+            })}
+          </div>
       </div>
     </div>
   </div>

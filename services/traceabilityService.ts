@@ -58,7 +58,13 @@ export const MOCK_RETRO_STANDARD: ProcessIndicator = {
   freenessDeviation: 1,
   fiberLength: 0.8,
   fiberLengthDeviation: 0.05,
-  deviceConfigs: [] // 此处UI仅展示核心指标，暂不需要设备配置
+  deviceConfigs: [
+    { deviceId: '1#', rotation: '正转' },
+    { deviceId: '2#', rotation: '正转' },
+    { deviceId: '3#', rotation: '反转' },
+    { deviceId: '4#', rotation: '正转' },
+    { deviceId: '5#', rotation: '反转' },
+  ]
 };
 
 // 3. 回溯记录列表 (关联 ProcessBacktrackRecord 实体)
