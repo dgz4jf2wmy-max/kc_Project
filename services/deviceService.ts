@@ -94,16 +94,27 @@ export const fetchDeviceRegistryList = async (): Promise<ApiResponse<DeviceRegis
 // 获取设备静态参数 (Mock)
 export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResponse<DeviceParam[]>> => {
   await new Promise(resolve => setTimeout(resolve, 200));
-  return {
-    code: 200,
-    message: 'success',
-    data: [
+  
+  const baseParams = [
       { id: '101', name: '额定功率', tag: 'rated_power', dataType: 'Float', unit: 'kW', value: '450' },
       { id: '102', name: '额定电压', tag: 'rated_voltage', dataType: 'Float', unit: 'V', value: '380' },
       { id: '103', name: '最大转速', tag: 'max_rpm', dataType: 'Integer', unit: 'rpm', value: '1500' },
       { id: '104', name: '设计产能', tag: 'design_capacity', dataType: 'Float', unit: 't/h', value: '120' },
       { id: '105', name: '安装位置', tag: 'location_code', dataType: 'String', unit: '-', value: '2F-Area-B' },
-    ]
+  ];
+
+  // 针对 1#~5# 设备增加灵敏度参数
+  if (['1', '2', '3', '4', '5'].includes(deviceId)) {
+      baseParams.push(
+          { id: '106', name: '叩解度灵敏度', tag: 'freeness_sensitivity', dataType: 'Float', unit: '-', value: '0.85' },
+          { id: '107', name: '纤维长度灵敏度', tag: 'fiber_length_sensitivity', dataType: 'Float', unit: '-', value: '0.62' }
+      );
+  }
+
+  return {
+    code: 200,
+    message: 'success',
+    data: baseParams
   };
 };
 
@@ -150,12 +161,21 @@ export const fetchDeviceDynamicParams = async (deviceId: string): Promise<ApiRes
           upperLimit: '5000.00', 
           lowerLimit: '0.00', 
           source: 'AI_FLOW_OUT' 
+        },
+        // 新增：温度
+        { 
+          id: 'dyn-out-02', 
+          name: '温度', 
+          description: '出口总管实时温度', 
+          upperLimit: '100.00', 
+          lowerLimit: '0.00', 
+          source: 'AI_TEMP_OUT' 
         }
       ]
     };
   }
 
-  // 默认设备 (磨浆机)
+  // 默认设备 (磨浆机 1#~5#)
   return {
     code: 200,
     message: 'success',
@@ -200,14 +220,7 @@ export const fetchDeviceDynamicParams = async (deviceId: string): Promise<ApiRes
         lowerLimit: '0.00', 
         source: 'FT_Main_01' 
       },
-      { 
-        id: 'dyn-06', 
-        name: '温度', 
-        description: '浆料实时温度监测 (Type: Number .00)', 
-        upperLimit: '150.00', 
-        lowerLimit: '0.00', 
-        source: 'TT_Main_01' 
-      },
+      // 移除：温度 (dyn-06)
       // 新增：刀盘间隙 (需求关联)
       { 
         id: 'dyn-07', 

@@ -466,7 +466,9 @@ const createInitialData = () => ({
     valveOut: true,
     runTime: 132,
     lifePercent: 85,
-    installDate: "2025-09-17"
+    installDate: "2025-09-17",
+    freenessSensitivity: (0.8 + Math.random() * 0.4).toFixed(2),
+    fiberLengthSensitivity: (0.5 + Math.random() * 0.5).toFixed(2)
 });
 
 // --- 3. 阀门组件 ---
@@ -600,9 +602,13 @@ const MainInletNode = () => {
 // 更新：显式展示关联设备 VIRT-OUT-001 和动态参数 AI_FLOW_OUT
 const MainOutletNode = () => {
   const [flow, setFlow] = useState((2850 + Math.random() * 50).toFixed(0));
+  const [temp, setTemp] = useState((46.5 + Math.random() * 0.5).toFixed(1));
   
   useEffect(() => {
-    const interval = setInterval(() => setFlow((2850 + Math.random() * 50).toFixed(0)), 2000);
+    const interval = setInterval(() => {
+        setFlow((2850 + Math.random() * 50).toFixed(0));
+        setTemp((46.5 + Math.random() * 0.5).toFixed(1));
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -685,7 +691,7 @@ const MainOutletNode = () => {
       </div>
 
       {/* Data & Valve Area */}
-      <div className="flex-1 flex flex-col items-center p-3 gap-8 z-10 pointer-events-none">
+      <div className="flex-1 flex flex-col items-center p-3 gap-2 z-10 pointer-events-none">
          <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-blue-100 w-full shadow-sm z-20 mt-4 relative group/tooltip">
             <span className="text-[10px] text-blue-600 font-bold uppercase mb-1">总管流量</span>
             <span className="font-mono font-bold text-xl text-slate-700 leading-none">{flow}</span>
@@ -694,6 +700,17 @@ const MainOutletNode = () => {
             {/* 参数关联提示 */}
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover/tooltip:opacity-100 whitespace-nowrap transition-opacity">
                Source: AI_FLOW_OUT
+            </div>
+         </div>
+
+         <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/95 border border-orange-100 w-full shadow-sm z-20 relative group/tooltip-temp">
+            <span className="text-[10px] text-orange-600 font-bold uppercase mb-1">总管温度</span>
+            <span className="font-mono font-bold text-xl text-slate-700 leading-none">{temp}</span>
+            <span className="text-[10px] text-slate-400">°C</span>
+
+            {/* 参数关联提示 */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover/tooltip-temp:opacity-100 whitespace-nowrap transition-opacity">
+               Source: AI_TEMP_OUT
             </div>
          </div>
          
@@ -794,7 +811,7 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
              {/* 进浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.inletY, left: 20, transform: 'translate(0, -50%)' }}>
                 <div className="absolute -top-9 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group transition-all hover:border-blue-300 hover:shadow-md">
-                   <div className="text-[9px] text-slate-400">P-In</div>
+                   <div className="text-[9px] text-slate-400">入口压力</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.inPressure}</div>
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveIn} vertical={true} /></div>
@@ -817,7 +834,7 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                     {isRun && (
                       <div className={`absolute -bottom-2 -right-8 backdrop-blur border shadow-sm px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 z-20 ${directionBadgeStyle}`}>
                           {isCW ? <RotateCw size={10}/> : <RotateCcw size={10}/>}
-                          {isCW ? 'CW' : 'CCW'}
+                          {isCW ? '正转' : '反转'}
                       </div>
                     )}
                 </div>
@@ -826,7 +843,7 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
              {/* 出浆压力 (关联逻辑) */}
              <div className="absolute flex flex-col items-center" style={{ top: CONFIG.outletTopY, right: 30, transform: 'translate(0, -50%)' }}>
                 <div className="absolute top-4 bg-white/95 backdrop-blur border border-slate-200 rounded px-1.5 py-0.5 shadow-sm text-center min-w-[45px] z-30 group transition-all hover:border-blue-300 hover:shadow-md">
-                   <div className="text-[9px] text-slate-400">P-Out</div>
+                   <div className="text-[9px] text-slate-400">出口压力</div>
                    <div className="text-xs font-mono font-bold text-slate-700">{data.outPressure}</div>
                 </div>
                 <div className="bg-white p-0.5 rounded-full border-none shadow-none z-20"><ValveIcon isOpen={data.valveOut} /></div>
@@ -844,9 +861,9 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                  </span>
               </div>
               <div className="flex flex-col items-end">
-                 <span className="text-[10px] text-slate-400 font-bold">压差 (dP)</span>
+                 <span className="text-[10px] text-slate-400 font-bold">压差</span>
                  <span className="font-mono font-bold text-lg text-slate-700">
-                   {data.diffPressure} <span className="text-[10px] font-normal text-slate-400">bar</span>
+                   {data.diffPressure} <span className="text-[10px] font-normal text-slate-400">MPa</span>
                  </span>
               </div>
            </div>
@@ -854,10 +871,6 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                <div className="flex items-center gap-1 text-slate-600">
                   <Droplet size={10} className="text-blue-400"/>
                   <span className="font-mono font-bold">{data.flow}</span> <span className="scale-90 text-slate-400">L/m</span>
-               </div>
-               <div className="flex items-center gap-1 text-slate-600">
-                  <Thermometer size={10} className="text-orange-400"/>
-                  <span className="font-mono font-bold">{data.temp}</span> <span className="scale-90 text-slate-400">°C</span>
                </div>
            </div>
       </div>
@@ -924,6 +937,17 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                 <span className="font-mono font-bold text-xs text-slate-600 flex justify-center items-center">
                    <ArrowDown size={10} className="text-slate-400"/> {data.gapChange}
                 </span>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-center items-end pt-2 border-t border-slate-200/50 mt-1">
+             <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] text-slate-400 scale-90 origin-center">叩解度灵敏度</span>
+                <span className="font-mono font-bold text-xs text-slate-500">{data.freenessSensitivity}</span>
+             </div>
+             <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] text-slate-400 scale-90 origin-center">纤维长度灵敏度</span>
+                <span className="font-mono font-bold text-xs text-slate-500">{data.fiberLengthSensitivity}</span>
              </div>
           </div>
       </div>
@@ -1065,12 +1089,10 @@ const CraftStandardCard = ({ onEdit, onHistory }: { onEdit?: () => void, onHisto
                       const colorClass = isCW 
                         ? 'text-emerald-600 bg-emerald-100 border-emerald-200' 
                         : 'text-blue-600 bg-blue-100 border-blue-200';
-                      const Icon = isCW ? RotateCw : RotateCcw;
-                      
                       return (
                         <div key={config.deviceId} className="flex flex-col items-center gap-0.5">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${colorClass} shadow-sm`}>
-                               <Icon size={12} strokeWidth={2.5} />
+                               <span className="text-[10px] font-bold leading-none">{isCW ? '正' : '反'}</span>
                             </div>
                             <span className="text-[9px] text-slate-400 font-mono font-bold scale-90">{config.deviceId}#</span>
                         </div>
