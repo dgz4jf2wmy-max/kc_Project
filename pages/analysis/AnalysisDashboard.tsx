@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { fetchMultiAnalysisData, AnalysisDataPoint } from '../../services/analysisDataService';
 import { RECORD_LIST } from '../../services/traceabilityService';
+import { getActiveProcessExceptions, deleteProcessException, ProcessExceptionItem } from '../../services/processExceptionService';
+import { Trash2 } from 'lucide-react';
 
 // Helper for Linear Regression (Least Squares)
 // y = kx + b
@@ -116,33 +118,6 @@ const PARAMS = [
   { id: 'dyn-07', name: '刀盘间隙', unit: 'mm', color: '#8b5cf6', min: 0, max: 2 },
   { id: 'dyn-05', name: '流量', unit: 'm³/h', color: '#ec4899', min: 100, max: 200 },
   { id: 'dyn-06', name: '浓度', unit: '%', color: '#10b981', min: 2, max: 6 },
-];
-
-const PROCESS_ALERTS = [
-    {
-      startDate: '09-27', startTime: '10:15', endTime: '10:20',
-      startVal: 55.2, endVal: 54.0,
-      isManual: true, isAuto: false, 
-      exceptionType: '叩解度异常'
-    },
-    {
-      startDate: '09-27', startTime: '09:30', endTime: '09:42',
-      startVal: 0.76, endVal: 0.81,
-      isManual: false, isAuto: true,
-      exceptionType: '纤维长度异常'
-    },
-    {
-      startDate: '09-27', startTime: '08:12', endTime: '08:18',
-      startVal: 2.65, endVal: 2.80,
-      isManual: true, isAuto: false,
-      exceptionType: '纤维长度异常'
-    },
-    {
-      startDate: '09-26', startTime: '23:50', endTime: '00:05',
-      startVal: 52.8, endVal: 54.5,
-      isManual: false, isAuto: true,
-      exceptionType: '叩解度异常'
-    }
 ];
 
 const scrollbarStyle = `
@@ -294,6 +269,27 @@ export const AnalysisDashboard: React.FC = () => {
   const [data, setData] = useState<Record<string, Record<string, AnalysisDataPoint[]>>>({});
   const [hasData, setHasData] = useState(false); // New state to control data visibility
   
+  // Process Exceptions State
+  const [processExceptions, setProcessExceptions] = useState<ProcessExceptionItem[]>([]);
+  const [exceptionToDelete, setExceptionToDelete] = useState<string | null>(null); // ID of exception to delete
+
+  useEffect(() => {
+    setProcessExceptions(getActiveProcessExceptions());
+  }, []);
+
+  const handleDeleteException = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row selection
+    setExceptionToDelete(id);
+  };
+
+  const confirmDeleteException = () => {
+    if (exceptionToDelete) {
+      deleteProcessException(exceptionToDelete);
+      setProcessExceptions(getActiveProcessExceptions());
+      setExceptionToDelete(null);
+    }
+  };
+
   const DATA_TYPES = ['全部', '工艺异常', '工艺回溯'];
 
   // 辅助函数：格式化显示日期 (yyyy-mm-dd hh:mm)
@@ -968,18 +964,25 @@ export const AnalysisDashboard: React.FC = () => {
             <div className="text-xs text-slate-500 mb-2">刀盘转向:</div>
             <div className="flex justify-between items-center px-1">
               {[
-                { id: '1#', dir: '正', color: 'text-cyan-500' },
-                { id: '2#', dir: '反', color: 'text-orange-500' },
-                { id: '3#', dir: '反', color: 'text-orange-500' },
-                { id: '4#', dir: '正', color: 'text-cyan-500' },
-                { id: '5#', dir: '正', color: 'text-cyan-500' },
-              ].map(item => (
-                <div key={item.id} className="flex flex-col items-center gap-1">
-                  <span className="text-[10px] font-bold text-slate-700">{hasData ? item.dir : '-'}</span>
-                  <RefreshCw size={14} className={hasData ? item.color : 'text-slate-300'} />
-                  <span className="text-[10px] text-slate-400">{item.id}</span>
-                </div>
-              ))}
+                { id: '1', dir: '正', isCW: true },
+                { id: '2', dir: '反', isCW: false },
+                { id: '3', dir: '反', isCW: false },
+                { id: '4', dir: '正', isCW: true },
+                { id: '5', dir: '正', isCW: true },
+              ].map(item => {
+                const colorClass = item.isCW 
+                  ? 'text-emerald-600 bg-emerald-100 border-emerald-200' 
+                  : 'text-blue-600 bg-blue-100 border-blue-200';
+                
+                return (
+                  <div key={item.id} className="flex flex-col items-center gap-0.5">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${hasData ? colorClass : 'bg-slate-100 text-slate-300 border-slate-200'} shadow-sm`}>
+                      <span className="text-[10px] font-bold leading-none">{hasData ? item.dir : '-'}</span>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-mono font-bold scale-90">{item.id}#</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -1504,9 +1507,9 @@ export const AnalysisDashboard: React.FC = () => {
              {/* Conditional List Content */}
              {selectedDataType === '工艺异常' && (
                 <div className="mt-3 max-h-[300px] overflow-y-auto pr-1 space-y-2">
-                   {PROCESS_ALERTS.map((item, i) => (
+                   {processExceptions.map((item, i) => (
                       <div 
-                        key={i} 
+                        key={item.id} 
                         className={`flex items-center justify-between p-2 rounded-lg border relative group transition-all cursor-pointer hover:shadow-sm ${
                           selectedItemIndex === i 
                             ? 'bg-blue-50 border-blue-400 shadow-sm ring-1 ring-blue-200' 
@@ -1547,16 +1550,58 @@ export const AnalysisDashboard: React.FC = () => {
                             </div>
                          </div>
                          
-                         <div className="flex flex-col gap-1 pl-2 border-l border-slate-200/50">
-                            <div className={`p-1 rounded ${item.isManual ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
-                               <User size={10} />
+                         <div className="flex flex-col gap-1 pl-2 border-l border-slate-200/50 items-center">
+                            <div className="flex gap-1 mb-1">
+                                <div className={`p-1 rounded ${item.isManual ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
+                                   <User size={10} />
+                                </div>
+                                <div className={`p-1 rounded ${item.isAuto ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
+                                   <RefreshCw size={10} /> 
+                                </div>
                             </div>
-                            <div className={`p-1 rounded ${item.isAuto ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-300 opacity-50'}`}>
-                               <RefreshCw size={10} /> 
-                            </div>
+                            
+                            {/* Delete Button */}
+                            <button 
+                                className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                                onClick={(e) => handleDeleteException(item.id, e)}
+                                title="删除记录"
+                            >
+                                <Trash2 size={12} />
+                            </button>
                          </div>
                       </div>
                    ))}
+                </div>
+             )}
+
+             {/* Delete Confirmation Modal */}
+             {exceptionToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                   <div className="bg-white rounded-xl shadow-2xl p-6 w-[300px] animate-in zoom-in-95 duration-200">
+                      <div className="flex flex-col items-center gap-4">
+                         <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+                            <Trash2 size={24} />
+                         </div>
+                         <div className="text-center">
+                            <h3 className="text-lg font-bold text-slate-800">确认删除?</h3>
+                            <p className="text-sm text-slate-500 mt-1">删除后可在【后台管理】中恢复</p>
+                         </div>
+                         <div className="flex gap-3 w-full mt-2">
+                            <button 
+                               className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm font-medium"
+                               onClick={() => setExceptionToDelete(null)}
+                            >
+                               取消
+                            </button>
+                            <button 
+                               className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium shadow-sm"
+                               onClick={confirmDeleteException}
+                            >
+                               确认删除
+                            </button>
+                         </div>
+                      </div>
+                   </div>
                 </div>
              )}
 

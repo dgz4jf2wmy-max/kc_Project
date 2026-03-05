@@ -3,6 +3,7 @@ import { StandardModal, STD_INPUT_CLASS } from '../../components/admin/StandardL
 import { ProcessIndicator, RotationDirection } from '../../types';
 import { fetchProcessRecords, updateProcessRecord, ProcessRecordFilter } from '../../services/processRecordService';
 import { RotateCw, RotateCcw, Search, RefreshCw, ChevronLeft } from 'lucide-react';
+import { PasswordVerificationModal } from './PasswordVerificationModal';
 
 interface ProcessRecordModalProps {
   onClose: () => void;
@@ -175,6 +176,10 @@ export const ProcessRecordModal: React.FC<ProcessRecordModalProps> = ({ onClose 
   const [records, setRecords] = useState<ProcessIndicator[]>([]);
   const [editingRecord, setEditingRecord] = useState<ProcessIndicator | null>(null);
   
+  // Password Verification State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [pendingRecord, setPendingRecord] = useState<ProcessIndicator | null>(null);
+
   // Filter State
   const [freeness, setFreeness] = useState<string>('');
   const [freenessDev, setFreenessDev] = useState<string>('');
@@ -214,8 +219,17 @@ export const ProcessRecordModal: React.FC<ProcessRecordModalProps> = ({ onClose 
   };
 
   const handleCorrect = (record: ProcessIndicator) => {
-    setEditingRecord(record);
-    setView('edit');
+    setPendingRecord(record);
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordSuccess = () => {
+    setIsPasswordModalOpen(false);
+    if (pendingRecord) {
+      setEditingRecord(pendingRecord);
+      setView('edit');
+      setPendingRecord(null);
+    }
   };
 
   const handleSaveCorrection = async (updatedData: ProcessIndicator) => {
@@ -244,182 +258,192 @@ export const ProcessRecordModal: React.FC<ProcessRecordModalProps> = ({ onClose 
   };
 
   return (
-    <StandardModal
-      title={view === 'list' ? "工艺下发记录" : "工艺更正"}
-      onClose={onClose}
-      width="w-[900px]"
-      footer={view === 'list' ? (
-        <button 
-          onClick={onClose}
-          className="px-5 py-2 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors"
-        >
-          关闭
-        </button>
-      ) : null} // Edit view has its own footer inside the form
-    >
-      {view === 'list' ? (
-        <div className="p-4 space-y-4 min-h-[500px]">
-           {/* Search Area */}
-           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-              <div className="flex items-center gap-4 flex-wrap">
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-700">工艺指标:</span>
-                    <span className="text-xs font-bold text-slate-500">叩解度</span>
-                    <input 
-                      type="number" 
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
-                      value={freeness}
-                      onChange={e => setFreeness(e.target.value)}
-                    />
-                    <span className="text-slate-400">±</span>
-                    <input 
-                      type="number" 
-                      className="w-12 px-2 py-1 border border-slate-300 rounded text-sm text-center"
-                      value={freenessDev}
-                      onChange={e => setFreenessDev(e.target.value)}
-                    />
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500">纤维长度</span>
-                    <input 
-                      type="number" 
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
-                      value={fiberLength}
-                      onChange={e => setFiberLength(e.target.value)}
-                    />
-                    <span className="text-slate-400">±</span>
-                    <input 
-                      type="number" 
-                      className="w-12 px-2 py-1 border border-slate-300 rounded text-sm text-center"
-                      value={fiberLengthDev}
-                      onChange={e => setFiberLengthDev(e.target.value)}
-                    />
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-700">产品代号:</span>
-                    <select 
-                      className="px-2 py-1 border border-slate-300 rounded text-sm min-w-[100px]"
-                      value={productCode}
-                      onChange={e => setProductCode(e.target.value)}
-                    >
-                       <option value="">请选择</option>
-                       <option value="TC">TC</option>
-                       <option value="7T">7T</option>
-                       <option value="MP">MP</option>
-                    </select>
-                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-700">工艺时间:</span>
-                    <div className="flex items-center border border-slate-300 rounded bg-white px-2 py-1">
-                       <input 
-                         type="date" 
-                         className="text-sm border-none focus:ring-0 p-0 text-slate-600"
-                         value={startDate}
-                         onChange={e => setStartDate(e.target.value)}
-                       />
-                       <span className="mx-2 text-slate-400">~</span>
-                       <input 
-                         type="date" 
-                         className="text-sm border-none focus:ring-0 p-0 text-slate-600"
-                         value={endDate}
-                         onChange={e => setEndDate(e.target.value)}
-                       />
-                    </div>
-                 </div>
-                 <div className="flex gap-2">
-                    <button 
-                      onClick={handleReset}
-                      className="px-4 py-1.5 rounded border border-slate-300 bg-white text-slate-600 text-sm hover:bg-slate-50"
-                    >
-                      重置
-                    </button>
-                    <button 
-                      onClick={handleSearch}
-                      className="px-4 py-1.5 rounded bg-blue-500 text-white text-sm hover:bg-blue-600 flex items-center gap-1"
-                    >
-                      <Search size={14}/> 查询
-                    </button>
-                 </div>
-              </div>
-           </div>
+    <>
+      <StandardModal
+        title={view === 'list' ? "工艺下发记录" : "工艺更正"}
+        onClose={onClose}
+        width="w-[900px]"
+        footer={view === 'list' ? (
+          <button 
+            onClick={onClose}
+            className="px-5 py-2 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors"
+          >
+            关闭
+          </button>
+        ) : null} // Edit view has its own footer inside the form
+      >
+        {view === 'list' ? (
+          <div className="p-4 space-y-4 min-h-[500px]">
+             {/* Search Area */}
+             <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                <div className="flex items-center gap-4 flex-wrap">
+                   <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-700">工艺指标:</span>
+                      <span className="text-xs font-bold text-slate-500">叩解度</span>
+                      <input 
+                        type="number" 
+                        className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        value={freeness}
+                        onChange={e => setFreeness(e.target.value)}
+                      />
+                      <span className="text-slate-400">±</span>
+                      <input 
+                        type="number" 
+                        className="w-12 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        value={freenessDev}
+                        onChange={e => setFreenessDev(e.target.value)}
+                      />
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500">纤维长度</span>
+                      <input 
+                        type="number" 
+                        className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        value={fiberLength}
+                        onChange={e => setFiberLength(e.target.value)}
+                      />
+                      <span className="text-slate-400">±</span>
+                      <input 
+                        type="number" 
+                        className="w-12 px-2 py-1 border border-slate-300 rounded text-sm text-center"
+                        value={fiberLengthDev}
+                        onChange={e => setFiberLengthDev(e.target.value)}
+                      />
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-700">产品代号:</span>
+                      <select 
+                        className="px-2 py-1 border border-slate-300 rounded text-sm min-w-[100px]"
+                        value={productCode}
+                        onChange={e => setProductCode(e.target.value)}
+                      >
+                         <option value="">请选择</option>
+                         <option value="TC">TC</option>
+                         <option value="7T">7T</option>
+                         <option value="MP">MP</option>
+                      </select>
+                   </div>
+                </div>
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-700">工艺时间:</span>
+                      <div className="flex items-center border border-slate-300 rounded bg-white px-2 py-1">
+                         <input 
+                           type="date" 
+                           className="text-sm border-none focus:ring-0 p-0 text-slate-600"
+                           value={startDate}
+                           onChange={e => setStartDate(e.target.value)}
+                         />
+                         <span className="mx-2 text-slate-400">~</span>
+                         <input 
+                           type="date" 
+                           className="text-sm border-none focus:ring-0 p-0 text-slate-600"
+                           value={endDate}
+                           onChange={e => setEndDate(e.target.value)}
+                         />
+                      </div>
+                   </div>
+                   <div className="flex gap-2">
+                      <button 
+                        onClick={handleReset}
+                        className="px-4 py-1.5 rounded border border-slate-300 bg-white text-slate-600 text-sm hover:bg-slate-50"
+                      >
+                        重置
+                      </button>
+                      <button 
+                        onClick={handleSearch}
+                        className="px-4 py-1.5 rounded bg-blue-500 text-white text-sm hover:bg-blue-600 flex items-center gap-1"
+                      >
+                        <Search size={14}/> 查询
+                      </button>
+                   </div>
+                </div>
+             </div>
+ 
+             {/* Table Area */}
+             <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm text-left">
+                   <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                         <th className="px-4 py-3">工艺时间</th>
+                         <th className="px-4 py-3 text-center">叩解度</th>
+                         <th className="px-4 py-3 text-center">纤维长度</th>
+                         <th className="px-4 py-3 text-center">产品代号</th>
+                         <th className="px-4 py-3 text-center">刀盘转向</th>
+                         <th className="px-4 py-3 text-center">操作</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                      {records.map((record) => {
+                         const editable = isEditable(record);
+                         const rotationStr = record.deviceConfigs?.map(d => d.rotation === '正转' ? '正' : '反').join('');
+                         
+                         return (
+                            <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                               <td className="px-4 py-3 text-slate-600 font-mono text-xs">
+                                  {record.startTime}
+                                  {record.endTime ? ` ~ ${record.endTime.slice(5)}` : <span className="text-emerald-500 ml-1">(进行中)</span>}
+                               </td>
+                               <td className="px-4 py-3 text-center font-bold text-slate-700">
+                                  {record.freeness}±{record.freenessDeviation}
+                               </td>
+                               <td className="px-4 py-3 text-center font-bold text-slate-700">
+                                  {record.fiberLength}±{record.fiberLengthDeviation}
+                               </td>
+                               <td className="px-4 py-3 text-center font-bold text-slate-800">
+                                  {record.productCode}
+                               </td>
+                               <td className="px-4 py-3 text-center text-slate-500 text-xs tracking-widest">
+                                  {rotationStr}
+                               </td>
+                               <td className="px-4 py-3 text-center">
+                                  <button 
+                                    onClick={() => editable && handleCorrect(record)}
+                                    disabled={!editable}
+                                    className={`text-xs font-medium underline underline-offset-2 ${
+                                       editable 
+                                         ? 'text-blue-500 hover:text-blue-700 decoration-blue-200 cursor-pointer' 
+                                         : 'text-slate-300 decoration-slate-200 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    更正
+                                  </button>
+                               </td>
+                            </tr>
+                         );
+                      })}
+                      {records.length === 0 && (
+                         <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">
+                               暂无数据
+                            </td>
+                         </tr>
+                      )}
+                   </tbody>
+                </table>
+             </div>
+          </div>
+        ) : (
+          // Edit View
+          <div>
+             {editingRecord && (
+               <CorrectionForm 
+                 initialData={editingRecord} 
+                 onSave={handleSaveCorrection}
+                 onCancel={() => setView('list')}
+               />
+             )}
+          </div>
+        )}
+      </StandardModal>
 
-           {/* Table Area */}
-           <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <table className="w-full text-sm text-left">
-                 <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
-                    <tr>
-                       <th className="px-4 py-3">工艺时间</th>
-                       <th className="px-4 py-3 text-center">叩解度</th>
-                       <th className="px-4 py-3 text-center">纤维长度</th>
-                       <th className="px-4 py-3 text-center">产品代号</th>
-                       <th className="px-4 py-3 text-center">刀盘转向</th>
-                       <th className="px-4 py-3 text-center">操作</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                    {records.map((record) => {
-                       const editable = isEditable(record);
-                       const rotationStr = record.deviceConfigs?.map(d => d.rotation === '正转' ? '正' : '反').join('');
-                       
-                       return (
-                          <tr key={record.id} className="hover:bg-slate-50 transition-colors">
-                             <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                                {record.startTime}
-                                {record.endTime ? ` ~ ${record.endTime.slice(5)}` : <span className="text-emerald-500 ml-1">(进行中)</span>}
-                             </td>
-                             <td className="px-4 py-3 text-center font-bold text-slate-700">
-                                {record.freeness}±{record.freenessDeviation}
-                             </td>
-                             <td className="px-4 py-3 text-center font-bold text-slate-700">
-                                {record.fiberLength}±{record.fiberLengthDeviation}
-                             </td>
-                             <td className="px-4 py-3 text-center font-bold text-slate-800">
-                                {record.productCode}
-                             </td>
-                             <td className="px-4 py-3 text-center text-slate-500 text-xs tracking-widest">
-                                {rotationStr}
-                             </td>
-                             <td className="px-4 py-3 text-center">
-                                <button 
-                                  onClick={() => editable && handleCorrect(record)}
-                                  disabled={!editable}
-                                  className={`text-xs font-medium underline underline-offset-2 ${
-                                     editable 
-                                       ? 'text-blue-500 hover:text-blue-700 decoration-blue-200 cursor-pointer' 
-                                       : 'text-slate-300 decoration-slate-200 cursor-not-allowed'
-                                  }`}
-                                >
-                                  更正
-                                </button>
-                             </td>
-                          </tr>
-                       );
-                    })}
-                    {records.length === 0 && (
-                       <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">
-                             暂无数据
-                          </td>
-                       </tr>
-                    )}
-                 </tbody>
-              </table>
-           </div>
-        </div>
-      ) : (
-        // Edit View
-        <div>
-           {editingRecord && (
-             <CorrectionForm 
-               initialData={editingRecord} 
-               onSave={handleSaveCorrection}
-               onCancel={() => setView('list')}
-             />
-           )}
-        </div>
+      {/* Password Verification Modal */}
+      {isPasswordModalOpen && (
+        <PasswordVerificationModal
+          onSuccess={handlePasswordSuccess}
+          onClose={() => setIsPasswordModalOpen(false)}
+        />
       )}
-    </StandardModal>
+    </>
   );
 };

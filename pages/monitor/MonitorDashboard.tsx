@@ -825,8 +825,7 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                     />
                     {isRun && (
                       <div className={`absolute -bottom-2 -right-8 backdrop-blur border shadow-sm px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 z-20 ${directionBadgeStyle}`}>
-                          {isCW ? <RotateCw size={10}/> : <RotateCcw size={10}/>}
-                          {isCW ? '正转' : '反转'}
+                          {isCW ? '正' : '反'}
                       </div>
                     )}
                 </div>
@@ -1397,8 +1396,8 @@ export const MonitorDashboard = () => {
   const [targetDeviceForChange, setTargetDeviceForChange] = useState<string | null>(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isKnifeSelectionModalOpen, setIsKnifeSelectionModalOpen] = useState(false);
-  // 新增：口令验证操作类型 ('KNIFE_CHANGE' | 'PROCESS_INDICATOR')
-  const [passwordActionType, setPasswordActionType] = useState<'KNIFE_CHANGE' | 'PROCESS_INDICATOR' | null>(null);
+  // 新增：口令验证操作类型 ('KNIFE_CHANGE' | 'PROCESS_INDICATOR' | 'RANGE_SETTINGS' | 'SENSITIVITY_SETTINGS')
+  const [passwordActionType, setPasswordActionType] = useState<'KNIFE_CHANGE' | 'PROCESS_INDICATOR' | 'RANGE_SETTINGS' | 'SENSITIVITY_SETTINGS' | null>(null);
 
   // 新增：父组件获取工艺配置，以同步设备转向
   const [deviceConfigs, setDeviceConfigs] = useState<ProcessIndicatorDeviceConfig[]>([]);
@@ -1492,6 +1491,10 @@ export const MonitorDashboard = () => {
       setIsKnifeSelectionModalOpen(true);
     } else if (passwordActionType === 'PROCESS_INDICATOR') {
       setIsIndicatorModalOpen(true);
+    } else if (passwordActionType === 'RANGE_SETTINGS') {
+      setIsRangeSettingsOpen(true);
+    } else if (passwordActionType === 'SENSITIVITY_SETTINGS') {
+      setIsSensitivitySettingsOpen(true);
     }
     setPasswordActionType(null);
   };
@@ -1681,7 +1684,10 @@ export const MonitorDashboard = () => {
                       {/* 按钮区域：保留按钮样式，增加 hover 效果 */}
                       <div className="flex gap-2 shrink-0">
                          <button 
-                           onClick={() => setIsRangeSettingsOpen(true)}
+                           onClick={() => {
+                             setPasswordActionType('RANGE_SETTINGS');
+                             setIsPasswordModalOpen(true);
+                           }}
                            className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded text-[10px] text-slate-600 transition-all shadow-sm"
                            title="测量值显示范围设置"
                          >
@@ -1689,7 +1695,10 @@ export const MonitorDashboard = () => {
                            范围设置
                          </button>
                          <button 
-                           onClick={() => setIsSensitivitySettingsOpen(true)}
+                           onClick={() => {
+                             setPasswordActionType('SENSITIVITY_SETTINGS');
+                             setIsPasswordModalOpen(true);
+                           }}
                            className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded text-[10px] text-slate-600 transition-all shadow-sm"
                            title="测量值灵敏度设置"
                          >
@@ -1797,7 +1806,11 @@ export const MonitorDashboard = () => {
 
       {/* 新增：测量值灵敏度设置弹窗 */}
       {isSensitivitySettingsOpen && (
-        <MeasurementSensitivitySettings onClose={() => setIsSensitivitySettingsOpen(false)} />
+        <MeasurementSensitivitySettings 
+          onClose={() => setIsSensitivitySettingsOpen(false)} 
+          isAllStopped={scenario.allStopped}
+          deviceRotations={deviceConfigs.reduce((acc, curr) => ({...acc, [curr.deviceId]: curr.rotation}), {} as Record<string, '正转' | '反转'>)}
+        />
       )}
     </div>
   );

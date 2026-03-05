@@ -538,10 +538,10 @@ const StandardCard = ({ data }: { data: ProcessIndicator }) => (
                   <div className={`
                     w-7 h-7 rounded-full flex items-center justify-center border shadow-sm transition-all
                     ${isCW 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                      : 'bg-blue-50 text-blue-600 border-blue-200'}
+                      ? 'bg-cyan-50 text-cyan-600 border-cyan-200' 
+                      : 'bg-orange-50 text-orange-600 border-orange-200'}
                   `}>
-                    {isCW ? <RotateCw size={14} /> : <RotateCcw size={14} />}
+                    <span className="text-xs font-bold">{isCW ? '正' : '反'}</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-mono font-bold">{config.deviceId}</span>
                 </div>

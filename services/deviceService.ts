@@ -105,60 +105,8 @@ export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResp
   ];
 
   // 针对 1#~5# 设备增加灵敏度参数 (从刀盘获取)
-  if (['1', '2', '3', '4', '5'].includes(deviceId)) {
-      // 获取刀盘列表
-      const knifeRes = await fetchKnifeList();
-      const knives = knifeRes.data;
-      
-      // 查找当前设备使用的刀盘
-      const currentKnife = knives.find(k => k.currentDevice === deviceId && k.status === 'in_use');
-
-      if (currentKnife) {
-          baseParams.push(
-              { 
-                  id: '106-F', 
-                  name: '叩解度灵敏度 (正转)', 
-                  tag: 'freeness_sensitivity_forward', 
-                  dataType: 'Float', 
-                  unit: '-', 
-                  value: currentKnife.freenessSensitivityForward?.toFixed(2) || '0.85' 
-              },
-              { 
-                  id: '106-R', 
-                  name: '叩解度灵敏度 (反转)', 
-                  tag: 'freeness_sensitivity_reverse', 
-                  dataType: 'Float', 
-                  unit: '-', 
-                  value: currentKnife.freenessSensitivityReverse?.toFixed(2) || '0.82' 
-              },
-              { 
-                  id: '107-F', 
-                  name: '纤维长度灵敏度 (正转)', 
-                  tag: 'fiber_length_sensitivity_forward', 
-                  dataType: 'Float', 
-                  unit: '-', 
-                  value: currentKnife.fiberLengthSensitivityForward?.toFixed(2) || '0.62' 
-              },
-              { 
-                  id: '107-R', 
-                  name: '纤维长度灵敏度 (反转)', 
-                  tag: 'fiber_length_sensitivity_reverse', 
-                  dataType: 'Float', 
-                  unit: '-', 
-                  value: currentKnife.fiberLengthSensitivityReverse?.toFixed(2) || '0.60' 
-              }
-          );
-      } else {
-          // 如果没有刀盘，显示默认值或提示
-          baseParams.push(
-              { id: '106-F', name: '叩解度灵敏度 (正转)', tag: 'freeness_sensitivity_forward', dataType: 'Float', unit: '-', value: '-' },
-              { id: '106-R', name: '叩解度灵敏度 (反转)', tag: 'freeness_sensitivity_reverse', dataType: 'Float', unit: '-', value: '-' },
-              { id: '107-F', name: '纤维长度灵敏度 (正转)', tag: 'fiber_length_sensitivity_forward', dataType: 'Float', unit: '-', value: '-' },
-              { id: '107-R', name: '纤维长度灵敏度 (反转)', tag: 'fiber_length_sensitivity_reverse', dataType: 'Float', unit: '-', value: '-' }
-          );
-      }
-  }
-
+  // 2025-03-05 Update: 灵敏度参数已迁移至刀盘管理静态参数中，此处不再返回
+  
   return {
     code: 200,
     message: 'success',

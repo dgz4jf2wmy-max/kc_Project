@@ -48,6 +48,10 @@ const AdminDashboard: React.FC = () => (
   </div>
 );
 
+import { PasswordVerificationModal } from './pages/monitor/PasswordVerificationModal';
+
+import { DeletedProcessExceptions } from './pages/admin/DeletedProcessExceptions';
+
 // ----------------------------------------------------------------------
 // Main APP
 // ----------------------------------------------------------------------
@@ -59,10 +63,29 @@ const App: React.FC = () => {
   // 增加简单的子路径状态，用于处理后台管理的内部导航
   const [currentPath, setCurrentPath] = useState<string>('/');
 
+  // Password Verification State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingModule, setPendingModule] = useState<ModuleType | null>(null);
+
   // 路由/模块切换处理器
   const handleNavigate = (module: ModuleType) => {
+    // 如果是班组绩效，需要验证口令
+    if (module === ModuleType.TEAM_PERFORMANCE) {
+      setPendingModule(module);
+      setShowPasswordModal(true);
+      return;
+    }
     setCurrentModule(module);
     setCurrentPath('/'); // 切换大模块时重置子路径
+  };
+
+  const handlePasswordSuccess = () => {
+    if (pendingModule) {
+      setCurrentModule(pendingModule);
+      setCurrentPath('/');
+      setPendingModule(null);
+    }
+    setShowPasswordModal(false);
   };
 
   // 后台管理内部导航处理器 (模拟路由跳转)
@@ -85,31 +108,47 @@ const App: React.FC = () => {
              {currentPath === '/admin/tools' && <KnifeManagement />}
              {currentPath === '/admin/devices' && <DeviceManagement />}
              {currentPath === '/admin/materials' && <MaterialManagement />}
+             {currentPath === '/admin/deleted-exceptions' && <DeletedProcessExceptions />}
              {currentPath === '/admin/passwords' && <OperationPasswordManagement />} 
-             {currentPath === '/admin/performance' && <TeamPerformance />} {/* 新增路由 */}
              
              {/* 默认 dashboard */}
              {currentPath !== '/admin/tools' && 
               currentPath !== '/admin/devices' && 
               currentPath !== '/admin/materials' && 
-              currentPath !== '/admin/passwords' && 
-              currentPath !== '/admin/performance' && <AdminDashboard />}
+              currentPath !== '/admin/passwords' && <AdminDashboard />}
           </AdminLayoutWithRouting>
         </div>
       )
   }
 
-  // 渲染逻辑：沉浸式视图 (孪生、监测、分析)
+  // 渲染逻辑：沉浸式视图 (孪生、监测、分析、班组绩效)
   return (
-    <ImmersiveLayout 
-      currentModule={currentModule} 
-      onNavigate={handleNavigate}
-      title={getModuleTitle(currentModule)}
-    >
-      {currentModule === ModuleType.DIGITAL_TWIN && <TwinDashboard />}
-      {currentModule === ModuleType.MONITORING && <MonitorDashboard />}
-      {currentModule === ModuleType.ANALYSIS && <AnalysisDashboard />}
-    </ImmersiveLayout>
+    <>
+      <ImmersiveLayout 
+        currentModule={currentModule} 
+        onNavigate={handleNavigate}
+        title={getModuleTitle(currentModule)}
+      >
+        {currentModule === ModuleType.DIGITAL_TWIN && <TwinDashboard />}
+        {currentModule === ModuleType.MONITORING && <MonitorDashboard />}
+        {currentModule === ModuleType.ANALYSIS && <AnalysisDashboard />}
+        {currentModule === ModuleType.TEAM_PERFORMANCE && (
+          <div className="h-full overflow-y-auto">
+             <TeamPerformance />
+          </div>
+        )}
+      </ImmersiveLayout>
+
+      {showPasswordModal && (
+        <PasswordVerificationModal
+          onSuccess={handlePasswordSuccess}
+          onClose={() => {
+            setShowPasswordModal(false);
+            setPendingModule(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 

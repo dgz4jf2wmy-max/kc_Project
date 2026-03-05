@@ -26,8 +26,8 @@ export const ImmersiveLayout: React.FC<ImmersiveLayoutProps> = ({
   title 
 }) => {
   // 模式判定
-  // 监测工作台 和 数据分析 均使用亮色模式
-  const isLightMode = currentModule === ModuleType.MONITORING || currentModule === ModuleType.ANALYSIS;
+  // 监测工作台、数据分析、班组绩效 均使用亮色模式
+  const isLightMode = currentModule === ModuleType.MONITORING || currentModule === ModuleType.ANALYSIS || currentModule === ModuleType.TEAM_PERFORMANCE;
   const isTwinMode = currentModule === ModuleType.DIGITAL_TWIN;
 
   // 动态背景类

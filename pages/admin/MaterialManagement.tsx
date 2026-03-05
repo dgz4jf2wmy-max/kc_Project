@@ -133,10 +133,6 @@ export const MaterialManagement: React.FC = () => {
         {/* 工具栏 */}
         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-white flex-none">
           <div className="flex gap-3">
-             <button className="flex items-center gap-2 px-4 py-2 bg-system-primary hover:bg-blue-700 text-white text-sm font-medium rounded shadow-sm transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                新增投料台账
-             </button>
              <button className="px-4 py-2 border border-gray-300 text-gray-600 text-sm font-medium rounded hover:bg-gray-50 transition-colors bg-white">
                 导出Excel
              </button>

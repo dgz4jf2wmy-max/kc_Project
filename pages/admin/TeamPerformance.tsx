@@ -39,6 +39,11 @@ import {
 
 // --- 辅助组件 ---
 
+// Helper: 生成模拟对比数据
+const generateComparisonData = (data: number[]) => {
+  return data.map(v => Number((v * (0.85 + Math.random() * 0.3)).toFixed(2)));
+};
+
 // 排名徽章组件
 const RankBadge: React.FC<{ rank: number }> = ({ rank }) => {
   // 1st Place - 金牌
@@ -107,6 +112,7 @@ type ChartType = 'daily_startup' | 'daily_avg';
 
 const StartupChartsSection: React.FC = () => {
     const [chartType, setChartType] = useState<ChartType>('daily_startup');
+    const [comparisonMode, setComparisonMode] = useState<'none' | 'yoy' | 'mom'>('none');
     const chartRef = useRef<HTMLDivElement>(null);
     const instanceRef = useRef<echarts.ECharts | null>(null);
     const [stackedData, setStackedData] = useState<DailyStartupDuration[]>([]);
@@ -143,37 +149,78 @@ const StartupChartsSection: React.FC = () => {
                 if (items[2]) series3.push({ value: items[2].duration, labelText: `${items[2].team}: ${items[2].duration}m` }); else series3.push({ value: 0, labelText: '' });
             });
             const labelOption = { show: true, position: 'inside', formatter: (params: any) => params.data.labelText || '', color: '#fff', fontSize: 10 };
+            
+            // 构建 Series
+            const seriesList: any[] = [
+                { name: '初次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#5470c6', borderRadius: [0, 0, 2, 2] }, label: labelOption, data: series1 },
+                { name: '第2次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#91cc75' }, label: labelOption, data: series2 },
+                { name: '第3次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#fac858', borderRadius: [2, 2, 0, 0] }, label: labelOption, data: series3 }
+            ];
+
+            // 如果有对比模式，添加对比线 (对比总时长)
+            if (comparisonMode !== 'none') {
+                const totalDurations = dates.map(date => {
+                    const items = dateMap.get(date) || [];
+                    return items.reduce((acc, cur) => acc + cur.duration, 0);
+                });
+                const compareData = generateComparisonData(totalDurations);
+                seriesList.push({
+                    name: comparisonMode === 'yoy' ? '去年同期' : '上月同期',
+                    type: 'line',
+                    data: compareData,
+                    lineStyle: { type: 'dashed', color: '#ff7070', width: 2 },
+                    itemStyle: { color: '#ff7070' },
+                    symbol: 'emptyCircle',
+                    symbolSize: 6
+                });
+            }
+
             option = {
                 title: { text: '每日开机时长统计', subtext: '各值班班组开机时长', left: 'center', top: 10, textStyle: { fontSize: 16, fontWeight: 'bold', color: '#334155' } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { data: ['初次开机', '第2次开机', '第3次开机'], top: 40, right: 20, icon: 'roundRect' },
+                legend: { 
+                    data: ['初次开机', '第2次开机', '第3次开机', comparisonMode === 'yoy' ? '去年同期' : (comparisonMode === 'mom' ? '上月同期' : '')].filter(Boolean), 
+                    top: 40, right: 20, icon: 'roundRect' 
+                },
                 grid: commonGrid, dataZoom: commonDataZoom,
                 xAxis: { type: 'category', data: dates.map((d: string) => d.slice(5)), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#64748b' } },
                 yAxis: { type: 'value', name: '耗时(分钟)', nameTextStyle: { color: '#94a3b8', padding: [0, 0, 0, 20] }, splitLine: { lineStyle: { color: '#f1f5f9' } }, axisLabel: { color: '#64748b' } },
-                series: [
-                    { name: '初次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#5470c6', borderRadius: [0, 0, 2, 2] }, label: labelOption, data: series1 },
-                    { name: '第2次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#91cc75' }, label: labelOption, data: series2 },
-                    { name: '第3次开机', type: 'bar', stack: 'total', barMaxWidth: 30, itemStyle: { color: '#fac858', borderRadius: [2, 2, 0, 0] }, label: labelOption, data: series3 }
-                ]
+                series: seriesList
             };
         } else {
             const dates = avgData.map(d => d.date);
             const values = avgData.map(d => d.avgDuration);
             const totalAvg = values.length > 0 ? (values.reduce((a,b)=>a+b,0) / values.length).toFixed(2) : '0';
+            
+            const seriesList: any[] = [
+                { name: '平均时长', type: 'bar', barMaxWidth: 30, itemStyle: { color: '#5470c6', borderRadius: [2, 2, 0, 0] }, data: values, markPoint: { data: [{ type: 'max', name: 'Max' }, { type: 'min', name: 'Min' }] }, markLine: { data: [{ name: '平均值', yAxis: Number(totalAvg), label: { formatter: `avg: ${totalAvg}`, position: 'end', color: 'red' }, lineStyle: { color: 'red', type: 'dashed' } }], symbol: ['none', 'arrow'] } }
+            ];
+
+            if (comparisonMode !== 'none') {
+                const compareData = generateComparisonData(values);
+                seriesList.push({
+                    name: comparisonMode === 'yoy' ? '去年同期' : '上月同期',
+                    type: 'line',
+                    data: compareData,
+                    lineStyle: { type: 'dashed', color: '#ff7070', width: 2 },
+                    itemStyle: { color: '#ff7070' }
+                });
+            }
+
             option = {
                 title: { text: '班组每日平均开机时长', subtext: `${dates[0] || ''} 至 ${dates[dates.length - 1] || ''}`, left: 'center', top: 10, textStyle: { fontSize: 16, fontWeight: 'bold', color: '#334155' } },
                 tooltip: { trigger: 'axis' },
                 grid: commonGrid, dataZoom: commonDataZoom,
                 xAxis: { type: 'category', data: dates.map(d => d.slice(5)), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#64748b' } },
                 yAxis: { type: 'value', name: '时长(分钟)', nameTextStyle: { color: '#94a3b8', padding: [0, 0, 0, 20] }, splitLine: { lineStyle: { color: '#f1f5f9' } }, axisLabel: { color: '#64748b' } },
-                series: [ { name: '平均时长', type: 'bar', barMaxWidth: 30, itemStyle: { color: '#5470c6', borderRadius: [2, 2, 0, 0] }, data: values, markPoint: { data: [{ type: 'max', name: 'Max' }, { type: 'min', name: 'Min' }] }, markLine: { data: [{ name: '平均值', yAxis: Number(totalAvg), label: { formatter: `avg: ${totalAvg}`, position: 'end', color: 'red' }, lineStyle: { color: 'red', type: 'dashed' } }], symbol: ['none', 'arrow'] } } ]
+                series: seriesList
             };
         }
         chart.setOption(option, true);
         const handleResize = () => chart.resize();
         window.addEventListener('resize', handleResize);
         return () => { window.removeEventListener('resize', handleResize); chart.dispose(); instanceRef.current = null; };
-    }, [chartType, stackedData, avgData]);
+    }, [chartType, stackedData, avgData, comparisonMode]);
 
     const handleViewData = () => {
         setLoadingDetails(true); setDetailDrawerOpen(true); setDetailFilters({ date: '', team: '', shift: '', durationMin: '', avgDurationMin: '' });
@@ -194,6 +241,18 @@ const StartupChartsSection: React.FC = () => {
                 <div className="flex justify-between items-center mb-2">
                     <div className="text-gray-800 font-bold text-lg">开机时长统计</div>
                     <div className="flex gap-3">
+                        <div className="relative">
+                            <select 
+                                className="appearance-none bg-white border border-blue-200 text-gray-700 py-1.5 pl-4 pr-8 rounded text-sm focus:outline-none focus:border-blue-500 font-medium cursor-pointer hover:bg-gray-50 transition-colors" 
+                                value={comparisonMode} 
+                                onChange={(e) => setComparisonMode(e.target.value as any)}
+                            >
+                                <option value="none">无对比</option>
+                                <option value="yoy">同比 (去年)</option>
+                                <option value="mom">环比 (上月)</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-500"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                        </div>
                         <div className="relative">
                             <select className="appearance-none bg-white border border-blue-200 text-gray-700 py-1.5 pl-4 pr-8 rounded text-sm focus:outline-none focus:border-blue-500 font-medium cursor-pointer hover:bg-gray-50 transition-colors" value={chartType} onChange={(e) => setChartType(e.target.value as ChartType)}>
                                 <option value="daily_startup">每日开机时长统计</option>
@@ -217,10 +276,60 @@ const StartupChartsSection: React.FC = () => {
                         <DataListCard>
                             <table className={StdTable.Table}>
                                 <thead className={StdTable.Thead}>
-                                    <tr><th className={StdTable.Th}>时间</th>{chartType === 'daily_startup' && (<><th className={StdTable.Th}>开机时长 (分钟)</th><th className={StdTable.Th}>班组</th><th className={StdTable.Th}>值班类型</th></>)}{chartType === 'daily_avg' && (<th className={StdTable.Th}>平均开机时长 (分钟)</th>)}</tr>
+                                    <tr>
+                                        <th className={StdTable.Th}>时间</th>
+                                        {chartType === 'daily_startup' && (
+                                            <>
+                                                <th className={StdTable.Th}>开机时长 (分钟)</th>
+                                                {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
+                                                <th className={StdTable.Th}>班组</th>
+                                                <th className={StdTable.Th}>值班类型</th>
+                                            </>
+                                        )}
+                                        {chartType === 'daily_avg' && (
+                                            <>
+                                                <th className={StdTable.Th}>平均开机时长 (分钟)</th>
+                                                {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
+                                            </>
+                                        )}
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm">
-                                    {loadingDetails ? (<tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>) : filteredDetails.length > 0 ? (filteredDetails.map((item, idx) => (<tr key={idx} className={StdTable.Tr}><td className={`${StdTable.Td} font-mono text-gray-600`}>{(item as any).time}</td>{chartType === 'daily_startup' && (<><td className={`${StdTable.Td} font-bold text-gray-800`}>{(item as DailyStartupDurationDetail).duration}</td><td className={StdTable.Td}><span className={`px-2 py-0.5 rounded text-xs font-bold border ${(item as any).team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : (item as any).team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : (item as any).team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{(item as DailyStartupDurationDetail).team}</span></td><td className={`${StdTable.Td} text-gray-600`}>{(item as DailyStartupDurationDetail).shiftType}</td></>)}{chartType === 'daily_avg' && (<td className={`${StdTable.Td} font-bold text-blue-600`}>{(item as DailyAvgStartupDurationDetail).avgDuration}</td>)}</tr>))) : (<tr><td colSpan={4} className={StdTable.Empty}>暂无匹配数据</td></tr>)}
+                                    {loadingDetails ? (
+                                        <tr><td colSpan={chartType === 'daily_startup' ? (comparisonMode !== 'none' ? 5 : 4) : (comparisonMode !== 'none' ? 3 : 2)} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>
+                                    ) : filteredDetails.length > 0 ? (
+                                        filteredDetails.map((item, idx) => (
+                                            <tr key={idx} className={StdTable.Tr}>
+                                                <td className={`${StdTable.Td} font-mono text-gray-600`}>{(item as any).time}</td>
+                                                {chartType === 'daily_startup' && (
+                                                    <>
+                                                        <td className={`${StdTable.Td} font-bold text-gray-800`}>{(item as DailyStartupDurationDetail).duration}</td>
+                                                        {comparisonMode !== 'none' && (
+                                                            <td className={`${StdTable.Td} text-gray-500 font-mono`}>
+                                                                {((item as DailyStartupDurationDetail).duration * (0.9 + Math.random() * 0.2)).toFixed(0)}
+                                                            </td>
+                                                        )}
+                                                        <td className={StdTable.Td}>
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold border ${(item as any).team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : (item as any).team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : (item as any).team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{(item as DailyStartupDurationDetail).team}</span>
+                                                        </td>
+                                                        <td className={`${StdTable.Td} text-gray-600`}>{(item as DailyStartupDurationDetail).shiftType}</td>
+                                                    </>
+                                                )}
+                                                {chartType === 'daily_avg' && (
+                                                    <>
+                                                        <td className={`${StdTable.Td} font-bold text-blue-600`}>{(item as DailyAvgStartupDurationDetail).avgDuration}</td>
+                                                        {comparisonMode !== 'none' && (
+                                                            <td className={`${StdTable.Td} text-gray-500 font-mono`}>
+                                                                {((item as DailyAvgStartupDurationDetail).avgDuration * (0.9 + Math.random() * 0.2)).toFixed(1)}
+                                                            </td>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan={chartType === 'daily_startup' ? (comparisonMode !== 'none' ? 5 : 4) : (comparisonMode !== 'none' ? 3 : 2)} className={StdTable.Empty}>暂无匹配数据</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </DataListCard>
@@ -246,6 +355,7 @@ const StabilityDistributionSection: React.FC = () => {
     // 转换后的实体类数据 (用于图表渲染)
     const [stabilityEntities, setStabilityEntities] = useState<TeamStartupStability[]>([]);
     const [distributionEntity, setDistributionEntity] = useState<StartupDurationDistribution | null>(null);
+    const [comparisonMode, setComparisonMode] = useState<'none' | 'yoy' | 'mom'>('none');
 
     const [detailOpen, setDetailOpen] = useState(false);
     const [loadingDetails, setLoadingDetails] = useState(false);
@@ -296,29 +406,50 @@ const StabilityDistributionSection: React.FC = () => {
         const colors = ['#5470c6', '#91cc75', '#73c0de', '#fac858']; 
         
         const series = teams.map((team, idx) => {
-            return { 
+            const baseSeries = { 
                 name: `${team}班`, 
                 type: 'scatter', 
                 symbolSize: 12, 
                 itemStyle: { color: colors[idx], opacity: 0.8 }, 
-                // 使用实体类数据进行映射
                 data: stabilityEntities
                     .filter(d => d.team === team)
                     .map(d => [`${team}班`, d.duration]) 
             };
+            return baseSeries;
         });
+
+        // 模拟对比数据 (散点图对比：添加灰色点)
+        if (comparisonMode !== 'none') {
+            teams.forEach((team, idx) => {
+                const mockData = stabilityEntities
+                    .filter(d => d.team === team)
+                    .map(d => [`${team}班`, d.duration * (0.9 + Math.random() * 0.2)]);
+                
+                series.push({
+                    name: `${team}班 (${comparisonMode === 'yoy' ? '去年' : '上月'})`,
+                    type: 'scatter',
+                    symbolSize: 8,
+                    itemStyle: { color: '#cbd5e1', opacity: 0.5 },
+                    data: mockData
+                } as any);
+            });
+        }
 
         const option: echarts.EChartsOption = {
             title: { text: '班组开机稳定性分析', subtext: '各班组开机稳定性分析', left: 'center', top: 5, textStyle: { fontSize: 16, fontWeight: 'bold', color: '#334155' } },
-            legend: { data: teams.map(t => `${t}班`), top: 35, right: 10, icon: 'circle', itemWidth: 10, itemHeight: 10 },
-            tooltip: { trigger: 'item', formatter: (params: any) => `${params.seriesName}<br/>开机耗时: <b>${params.value[1]}</b> 分` },
+            legend: { 
+                data: [...teams.map(t => `${t}班`), ...(comparisonMode !== 'none' ? teams.map(t => `${t}班 (${comparisonMode === 'yoy' ? '去年' : '上月'})`) : [])], 
+                top: 35, right: 10, icon: 'circle', itemWidth: 10, itemHeight: 10,
+                type: 'scroll'
+            },
+            tooltip: { trigger: 'item', formatter: (params: any) => `${params.seriesName}<br/>开机耗时: <b>${Number(params.value[1]).toFixed(1)}</b> 分` },
             grid: { left: '10%', right: '10%', top: '25%', bottom: '15%', },
             xAxis: { type: 'category', data: teams.map(t => `${t}班`), axisLine: { lineStyle: { color: '#64748b' } }, axisTick: { show: false }, splitLine: { show: false } },
             yAxis: { type: 'value', name: '开机耗时(分)', min: 0, max: 70, nameTextStyle: { align: 'left', padding: [0, 0, 0, -20] }, splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }, axisLabel: { color: '#64748b' } },
             series: series as any
         };
-        stabilityInstance.current.setOption(option);
-    }, [stabilityEntities]); 
+        stabilityInstance.current.setOption(option, true); // true for not merging
+    }, [stabilityEntities, comparisonMode]); 
 
     // 渲染饼图 - 使用 distributionEntity 实体
     // 样式更新：严格对标截图 (Labels outside, No Legend, Specific Colors)
@@ -333,11 +464,42 @@ const StabilityDistributionSection: React.FC = () => {
             { value: distributionEntity.range40to60, name: '40-60分钟' }, 
             { value: distributionEntity.rangeOver60, name: '60分钟以上' } 
         ];
+
+        const seriesList: any[] = [
+            { 
+                name: '开机时长分布', 
+                type: 'pie', 
+                radius: comparisonMode === 'none' ? ['30%', '68%'] : ['45%', '68%'], 
+                center: ['50%', '55%'], 
+                avoidLabelOverlap: true, 
+                itemStyle: { borderRadius: 12, borderColor: '#fff', borderWidth: 3 }, 
+                label: { show: true, position: 'outside', formatter: '{b} {c}次', color: '#475569', fontSize: 13, fontWeight: 500 }, 
+                labelLine: { show: true, length: 20, length2: 20, lineStyle: { color: '#cbd5e1' } },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#334155' }, scale: true, scaleSize: 6 }, 
+                data: data, 
+                color: ['#5b75f0', '#b0e34f', '#465063', '#ff9f57'] 
+            } 
+        ];
+
+        // 对比模式：添加内圈
+        if (comparisonMode !== 'none') {
+            const compareData = data.map(d => ({ ...d, value: Math.round(d.value * (0.8 + Math.random() * 0.4)) }));
+            seriesList.push({
+                name: comparisonMode === 'yoy' ? '去年同期' : '上月同期',
+                type: 'pie',
+                radius: ['20%', '35%'],
+                center: ['50%', '55%'],
+                itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2, opacity: 0.6 },
+                label: { show: false },
+                data: compareData,
+                color: ['#5b75f0', '#b0e34f', '#465063', '#ff9f57'] // Keep same colors
+            });
+        }
         
         const option: echarts.EChartsOption = {
             title: { 
                 text: '开机时长分布', 
-                subtext: '开机时长档位分布', 
+                subtext: comparisonMode === 'none' ? '开机时长档位分布' : (comparisonMode === 'yoy' ? '内圈: 去年同期 | 外圈: 当前' : '内圈: 上月同期 | 外圈: 当前'), 
                 left: 'center', 
                 top: 10,
                 textStyle: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
@@ -345,64 +507,18 @@ const StabilityDistributionSection: React.FC = () => {
             },
             tooltip: { 
                 trigger: 'item', 
-                formatter: '{b}: {c}次 ({d}%)',
+                formatter: '{a} <br/>{b}: {c}次 ({d}%)',
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 borderColor: '#e2e8f0',
                 borderWidth: 1,
                 textStyle: { color: '#334155' },
                 padding: 10
             },
-            legend: {
-                show: false // Hide legend to match image
-            },
-            series: [ 
-                { 
-                    name: '开机时长分布', 
-                    type: 'pie', 
-                    // CHANGE: 内径缩小至 30%
-                    radius: ['30%', '68%'], 
-                    center: ['50%', '55%'], 
-                    avoidLabelOverlap: true, 
-                    itemStyle: { 
-                        // CHANGE: 圆角加大至 12
-                        borderRadius: 12, 
-                        borderColor: '#fff', 
-                        borderWidth: 3 
-                    }, 
-                    label: { 
-                        show: true, 
-                        position: 'outside',
-                        formatter: '{b} {c}次', // Format: "Range Count次"
-                        color: '#475569',
-                        fontSize: 13,
-                        fontWeight: 500
-                    }, 
-                    labelLine: {
-                        show: true,
-                        length: 20,
-                        length2: 20,
-                        lineStyle: {
-                            color: '#cbd5e1'
-                        }
-                    },
-                    emphasis: { 
-                        label: { 
-                            show: true, 
-                            fontSize: 14, 
-                            fontWeight: 'bold',
-                            color: '#334155'
-                        },
-                        scale: true,
-                        scaleSize: 6
-                    }, 
-                    data: data, 
-                    // Colors from image: Blue, Lime Green, Dark Grey, Orange
-                    color: ['#5b75f0', '#b0e34f', '#465063', '#ff9f57'] 
-                } 
-            ]
+            legend: { show: false },
+            series: seriesList
         };
-        distributionInstance.current.setOption(option);
-    }, [distributionEntity]); 
+        distributionInstance.current.setOption(option, true);
+    }, [distributionEntity, comparisonMode]); 
 
     useEffect(() => {
         const handleResize = () => { stabilityInstance.current?.resize(); distributionInstance.current?.resize(); };
@@ -422,8 +538,36 @@ const StabilityDistributionSection: React.FC = () => {
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 min-h-[380px]">
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative flex flex-col"><div className="absolute top-4 right-4 z-10"><button onClick={() => handleViewData('stability')} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-100">查看数据</button></div><div ref={stabilityChartRef} className="flex-1 w-full min-h-[320px]"></div></div>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative flex flex-col"><div className="absolute top-4 right-4 z-10"><button onClick={() => handleViewData('distribution')} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-100">查看数据</button></div><div ref={distributionChartRef} className="flex-1 w-full min-h-[320px]"></div></div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative flex flex-col">
+                    <div className="absolute top-4 right-4 z-10 flex gap-2">
+                        <select 
+                            className="appearance-none bg-white border border-blue-200 text-gray-700 py-1 pl-2 pr-6 rounded text-xs focus:outline-none focus:border-blue-500 font-medium cursor-pointer hover:bg-gray-50 transition-colors" 
+                            value={comparisonMode} 
+                            onChange={(e) => setComparisonMode(e.target.value as any)}
+                        >
+                            <option value="none">无对比</option>
+                            <option value="yoy">同比</option>
+                            <option value="mom">环比</option>
+                        </select>
+                        <button onClick={() => handleViewData('stability')} className="px-4 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-100">查看数据</button>
+                    </div>
+                    <div ref={stabilityChartRef} className="flex-1 w-full min-h-[320px]"></div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 relative flex flex-col">
+                    <div className="absolute top-4 right-4 z-10 flex gap-2">
+                         <select 
+                            className="appearance-none bg-white border border-blue-200 text-gray-700 py-1 pl-2 pr-6 rounded text-xs focus:outline-none focus:border-blue-500 font-medium cursor-pointer hover:bg-gray-50 transition-colors" 
+                            value={comparisonMode} 
+                            onChange={(e) => setComparisonMode(e.target.value as any)}
+                        >
+                            <option value="none">无对比</option>
+                            <option value="yoy">同比</option>
+                            <option value="mom">环比</option>
+                        </select>
+                        <button onClick={() => handleViewData('distribution')} className="px-4 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-100">查看数据</button>
+                    </div>
+                    <div ref={distributionChartRef} className="flex-1 w-full min-h-[320px]"></div>
+                </div>
             </div>
             {detailOpen && (
                 <StandardDrawer title={drawerTitle} onClose={() => setDetailOpen(false)} width="w-[800px]" footer={<button className="px-5 py-2 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium transition-colors" onClick={() => setDetailOpen(false)}>关闭</button>}>
@@ -431,9 +575,37 @@ const StabilityDistributionSection: React.FC = () => {
                         <SearchFilterCard actions={<div className="text-gray-400 text-xs self-center">实时过滤</div>}><FilterItem label="日期/时间"><input type="text" placeholder="YYYY-MM-DD" className={STD_INPUT_CLASS} value={filters.date} onChange={e => setFilters({...filters, date: e.target.value})} /></FilterItem><FilterItem label="班组"><select className={STD_INPUT_CLASS} value={filters.team} onChange={e => setFilters({...filters, team: e.target.value})}><option value="">全部</option><option value="甲">甲</option><option value="乙">乙</option><option value="丙">丙</option><option value="丁">丁</option></select></FilterItem><FilterItem label="值班类型"><select className={STD_INPUT_CLASS} value={filters.shift} onChange={e => setFilters({...filters, shift: e.target.value})}><option value="">全部</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option></select></FilterItem><FilterItem label="开机耗时(分)"><div className="flex items-center gap-1"><input type="number" placeholder="Min" className={`${STD_INPUT_CLASS} text-center`} value={filters.durationMin} onChange={e => setFilters({...filters, durationMin: e.target.value})} /><span className="text-gray-400">-</span><input type="number" placeholder="Max" className={`${STD_INPUT_CLASS} text-center`} value={filters.durationMax} onChange={e => setFilters({...filters, durationMax: e.target.value})} /></div></FilterItem></SearchFilterCard>
                         <DataListCard>
                             <table className={StdTable.Table}>
-                                <thead className={StdTable.Thead}><tr><th className={StdTable.Th}>开机时间</th><th className={StdTable.Th}>班组</th><th className={StdTable.Th}>值班类型</th><th className={StdTable.Th}>开机耗时 (分钟)</th></tr></thead>
+                                <thead className={StdTable.Thead}>
+                                    <tr>
+                                        <th className={StdTable.Th}>开机时间</th>
+                                        <th className={StdTable.Th}>班组</th>
+                                        <th className={StdTable.Th}>值班类型</th>
+                                        <th className={StdTable.Th}>开机耗时 (分钟)</th>
+                                        {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
+                                    </tr>
+                                </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm">
-                                    {loadingDetails ? (<tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>) : filteredDetails.length > 0 ? (filteredDetails.map((item, idx) => (<tr key={idx} className={StdTable.Tr}><td className={`${StdTable.Td} font-mono text-gray-600`}>{item.startTime}</td><td className={StdTable.Td}><span className={`px-2 py-0.5 rounded text-xs font-bold border ${item.team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : item.team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : item.team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{item.team}</span></td><td className={`${StdTable.Td} text-gray-600`}>{item.shiftType}</td><td className={`${StdTable.Td} font-bold text-gray-800`}>{item.duration}</td></tr>))) : (<tr><td colSpan={4} className={StdTable.Empty}>暂无匹配数据</td></tr>)}
+                                    {loadingDetails ? (
+                                        <tr><td colSpan={comparisonMode !== 'none' ? 5 : 4} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>
+                                    ) : filteredDetails.length > 0 ? (
+                                        filteredDetails.map((item, idx) => (
+                                            <tr key={idx} className={StdTable.Tr}>
+                                                <td className={`${StdTable.Td} font-mono text-gray-600`}>{item.startTime}</td>
+                                                <td className={StdTable.Td}>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${item.team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : item.team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : item.team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{item.team}</span>
+                                                </td>
+                                                <td className={`${StdTable.Td} text-gray-600`}>{item.shiftType}</td>
+                                                <td className={`${StdTable.Td} font-bold text-gray-800`}>{item.duration}</td>
+                                                {comparisonMode !== 'none' && (
+                                                    <td className={`${StdTable.Td} text-gray-500 font-mono`}>
+                                                        {(item.duration * (0.9 + Math.random() * 0.2)).toFixed(0)}
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan={comparisonMode !== 'none' ? 5 : 4} className={StdTable.Empty}>暂无匹配数据</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </DataListCard>
@@ -455,6 +627,7 @@ const QualifiedRateSection: React.FC = () => {
     // 状态管理
     const [chartData, setChartData] = useState<DailyTeamQualifiedRate[]>([]);
     const [detailList, setDetailList] = useState<QualifiedRateStatsDetail[]>([]);
+    const [comparisonMode, setComparisonMode] = useState<'none' | 'yoy' | 'mom'>('none');
     
     // 汇总实体类数据 (QualifiedRateStats)
     const [summaryStats, setSummaryStats] = useState<QualifiedRateStats | null>(null);
@@ -572,6 +745,50 @@ const QualifiedRateSection: React.FC = () => {
         const dates = chartData.map(d => d.date.slice(5)); // MM-DD
         const seriesData = (key: 'teamA'|'teamB'|'teamC'|'teamD'|'total') => chartData.map(d => d[dataKey][key]);
 
+        const seriesList: any[] = [
+            { name: '甲班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamA'), itemStyle: { color: '#5470c6' } },
+            { name: '乙班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamB'), itemStyle: { color: '#91cc75' } },
+            { name: '丙班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamC'), itemStyle: { color: '#fac858' } },
+            { name: '丁班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamD'), itemStyle: { color: '#ee6666' } },
+            { 
+                name: '总合格率', 
+                type: 'line', 
+                smooth: true, 
+                symbol: 'circle', 
+                symbolSize: 8,
+                itemStyle: { color: '#fff', borderColor: '#333', borderWidth: 2 },
+                lineStyle: { color: '#333', width: 3 },
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#333',
+                    fontWeight: 'bold',
+                    formatter: '{c}',
+                    backgroundColor: '#fff',
+                    padding: [2, 4],
+                    borderRadius: 2
+                },
+                data: seriesData('total'),
+                z: 10 
+            }
+        ];
+
+        // 对比模式：添加总合格率的对比线
+        if (comparisonMode !== 'none') {
+            const totalData = seriesData('total');
+            const compareData = generateComparisonData(totalData);
+            seriesList.push({
+                name: comparisonMode === 'yoy' ? '总合格率(去年)' : '总合格率(上月)',
+                type: 'line',
+                smooth: true,
+                symbol: 'none',
+                lineStyle: { type: 'dashed', color: '#999', width: 2 },
+                itemStyle: { color: '#999' },
+                data: compareData,
+                z: 5
+            });
+        }
+
         return {
             title: {
                 text: title,
@@ -581,7 +798,7 @@ const QualifiedRateSection: React.FC = () => {
             },
             tooltip: { trigger: 'axis' },
             legend: {
-                data: ['甲班', '乙班', '丙班', '丁班', '总合格率'],
+                data: ['甲班', '乙班', '丙班', '丁班', '总合格率', comparisonMode === 'yoy' ? '总合格率(去年)' : (comparisonMode === 'mom' ? '总合格率(上月)' : '')].filter(Boolean),
                 top: 30,
                 icon: 'roundRect'
             },
@@ -622,33 +839,7 @@ const QualifiedRateSection: React.FC = () => {
                 splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } },
                 axisLabel: { color: '#64748b' }
             },
-            series: [
-                { name: '甲班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamA'), itemStyle: { color: '#5470c6' } },
-                { name: '乙班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamB'), itemStyle: { color: '#91cc75' } },
-                { name: '丙班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamC'), itemStyle: { color: '#fac858' } },
-                { name: '丁班', type: 'line', smooth: true, showSymbol: true, symbol: 'circle', symbolSize: 6, data: seriesData('teamD'), itemStyle: { color: '#ee6666' } },
-                { 
-                    name: '总合格率', 
-                    type: 'line', 
-                    smooth: true, 
-                    symbol: 'circle', 
-                    symbolSize: 8,
-                    itemStyle: { color: '#fff', borderColor: '#333', borderWidth: 2 },
-                    lineStyle: { color: '#333', width: 3 },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        color: '#333',
-                        fontWeight: 'bold',
-                        formatter: '{c}',
-                        backgroundColor: '#fff',
-                        padding: [2, 4],
-                        borderRadius: 2
-                    },
-                    data: seriesData('total'),
-                    z: 10 
-                }
-            ]
+            series: seriesList
         };
     };
 
@@ -659,8 +850,8 @@ const QualifiedRateSection: React.FC = () => {
         if (!freenessInstance.current) freenessInstance.current = echarts.init(freenessChartRef.current);
         if (!fiberInstance.current) fiberInstance.current = echarts.init(fiberChartRef.current);
 
-        freenessInstance.current.setOption(getChartOption('每日叩解度合格率统计', 'freeness', 90));
-        fiberInstance.current.setOption(getChartOption('每日纤维长度合格率', 'fiberLength', 94));
+        freenessInstance.current.setOption(getChartOption('每日叩解度合格率统计', 'freeness', 90), true);
+        fiberInstance.current.setOption(getChartOption('每日纤维长度合格率', 'fiberLength', 94), true);
 
         const handleResize = () => {
             freenessInstance.current?.resize();
@@ -668,7 +859,7 @@ const QualifiedRateSection: React.FC = () => {
         };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [chartData]);
+    }, [chartData, comparisonMode]);
 
     const handleViewDetails = (type: 'freeness' | 'fiber') => {
         setDetailType(type);
@@ -687,14 +878,28 @@ const QualifiedRateSection: React.FC = () => {
         <>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mt-4 min-h-[450px] flex flex-col">
                 {/* 顶部标题栏 */}
-                <div className="flex items-center gap-2 mb-4 border-l-4 border-blue-500 pl-3">
-                    <div className="text-gray-800 font-bold text-lg">合格率统计</div>
-                    {/* 调试信息：展示关联的汇总实体数据，证明关联性 */}
-                    {summaryStats && (
-                        <div className="text-xs text-gray-400 font-mono ml-4 hidden lg:block">
-                            (Avg Freeness: {summaryStats.avgFreenessQualifiedRate}%, Avg Fiber: {summaryStats.avgFiberLengthQualifiedRate}%)
-                        </div>
-                    )}
+                <div className="flex items-center justify-between mb-4 border-l-4 border-blue-500 pl-3 pr-4">
+                    <div className="flex items-center gap-2">
+                        <div className="text-gray-800 font-bold text-lg">合格率统计</div>
+                        {/* 调试信息：展示关联的汇总实体数据，证明关联性 */}
+                        {summaryStats && (
+                            <div className="text-xs text-gray-400 font-mono ml-4 hidden lg:block">
+                                (Avg Freeness: {summaryStats.avgFreenessQualifiedRate}%, Avg Fiber: {summaryStats.avgFiberLengthQualifiedRate}%)
+                            </div>
+                        )}
+                    </div>
+                    <div className="relative">
+                        <select 
+                            className="appearance-none bg-white border border-blue-200 text-gray-700 py-1.5 pl-4 pr-8 rounded text-sm focus:outline-none focus:border-blue-500 font-medium cursor-pointer hover:bg-gray-50 transition-colors" 
+                            value={comparisonMode} 
+                            onChange={(e) => setComparisonMode(e.target.value as any)}
+                        >
+                            <option value="none">无对比</option>
+                            <option value="yoy">同比 (去年)</option>
+                            <option value="mom">环比 (上月)</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-500"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                    </div>
                 </div>
 
                 {loadingDetails && chartData.length === 0 ? (
@@ -771,11 +976,16 @@ const QualifiedRateSection: React.FC = () => {
                                         <th className={StdTable.Th}>
                                             {detailType === 'freeness' ? '叩解度合格率 (%)' : '纤维长度合格率 (%)'}
                                         </th>
+                                        {comparisonMode !== 'none' && (
+                                            <th className={StdTable.Th}>
+                                                {comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (%)
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm">
                                     {loadingDetails ? (
-                                        <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>
+                                        <tr><td colSpan={comparisonMode !== 'none' ? 4 : 3} className="px-6 py-12 text-center text-gray-400">加载中...</td></tr>
                                     ) : filteredDetails.length > 0 ? (
                                         filteredDetails.map((item, idx) => (
                                             <tr key={idx} className={StdTable.Tr}>
@@ -793,10 +1003,15 @@ const QualifiedRateSection: React.FC = () => {
                                                 <td className={`${StdTable.Td} font-bold text-gray-800`}>
                                                     {detailType === 'freeness' ? item.freenessQualifiedRate : item.fiberLengthQualifiedRate}
                                                 </td>
+                                                {comparisonMode !== 'none' && (
+                                                    <td className={`${StdTable.Td} text-gray-500 font-mono`}>
+                                                        {((detailType === 'freeness' ? item.freenessQualifiedRate : item.fiberLengthQualifiedRate) * (0.95 + Math.random() * 0.1)).toFixed(2)}
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan={3} className={StdTable.Empty}>暂无匹配数据</td></tr>
+                                        <tr><td colSpan={comparisonMode !== 'none' ? 4 : 3} className={StdTable.Empty}>暂无匹配数据</td></tr>
                                     )}
                                 </tbody>
                             </table>

@@ -159,16 +159,7 @@ export const KnifeManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'archive' | 'device_relation' | 'data'>('archive');
 
   // MOCK 数据 - 静态参数 (符合截图列结构，同时包含需求数据)
-  const [staticParams] = useState([
-    { 
-      id: 1, 
-      name: '预计寿命时长', 
-      tag: 'estimated_lifespan', // 推导字段
-      dataType: '数字', 
-      unit: '小时', 
-      value: '500' 
-    }
-  ]);
+  const [staticParams, setStaticParams] = useState<any[]>([]);
 
   useEffect(() => {
     fetchKnifeList().then(res => setKnives(res.data));
@@ -181,6 +172,50 @@ export const KnifeManagement: React.FC = () => {
       // 并行获取详情数据
       fetchKnifeUsageHistory(selectedKnife.id).then(res => setUsageHistory(res.data));
       fetchKnifeGapAnalysis(selectedKnife.id).then(res => setGapAnalysis(res.data));
+
+      // 填充静态参数 (包含灵敏度设置)
+      setStaticParams([
+        { 
+          id: 1, 
+          name: '预计寿命时长', 
+          tag: 'estimated_lifespan', 
+          dataType: '数字', 
+          unit: '小时', 
+          value: String(selectedKnife.estimatedLifespan || '500') 
+        },
+        {
+          id: 2,
+          name: '叩解度灵敏度 (正转)',
+          tag: 'freeness_sensitivity_fwd',
+          dataType: '数字',
+          unit: '-',
+          value: String(selectedKnife.freenessSensitivityForward || '-')
+        },
+        {
+          id: 3,
+          name: '叩解度灵敏度 (反转)',
+          tag: 'freeness_sensitivity_rev',
+          dataType: '数字',
+          unit: '-',
+          value: String(selectedKnife.freenessSensitivityReverse || '-')
+        },
+        {
+          id: 4,
+          name: '纤维长度灵敏度 (正转)',
+          tag: 'fiber_len_sensitivity_fwd',
+          dataType: '数字',
+          unit: '-',
+          value: String(selectedKnife.fiberLengthSensitivityForward || '-')
+        },
+        {
+          id: 5,
+          name: '纤维长度灵敏度 (反转)',
+          tag: 'fiber_len_sensitivity_rev',
+          dataType: '数字',
+          unit: '-',
+          value: String(selectedKnife.fiberLengthSensitivityReverse || '-')
+        }
+      ]);
     }
   }, [selectedKnife]);
 

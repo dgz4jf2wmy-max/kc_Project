@@ -305,3 +305,13 @@ export const executeKnifeChange = async (
 
     return { code: 200, message: 'success', data: true };
 };
+
+export const updateKnifeSensitivity = async (knifeId: string, params: Partial<KnifeDisc>): Promise<ApiResponse<boolean>> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const index = MOCK_KNIFE_LIST.findIndex(k => k.id === knifeId);
+  if (index !== -1) {
+    MOCK_KNIFE_LIST[index] = { ...MOCK_KNIFE_LIST[index], ...params };
+    return { code: 200, message: 'success', data: true };
+  }
+  return { code: 404, message: 'Knife not found', data: false };
+};

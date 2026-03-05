@@ -7,6 +7,8 @@ export enum ModuleType {
   DIGITAL_TWIN = 'digital_twin',
   MONITORING = 'monitoring',
   ANALYSIS = 'analysis',
+  TEAM_PERFORMANCE = 'team_performance',
+  DELETED_EXCEPTIONS = 'deleted_exceptions',
   ADMIN = 'admin'
 }
 
