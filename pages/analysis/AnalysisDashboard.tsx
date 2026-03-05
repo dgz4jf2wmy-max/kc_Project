@@ -370,9 +370,23 @@ export const AnalysisDashboard: React.FC = () => {
   });
 
   const loadData = async () => {
+    // 校验：如果是“全部”类型，必须选择时间范围
+    if (selectedDataType === '全部' && (!dateRange.start || !dateRange.end)) {
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetchMultiAnalysisData(DEVICES, PARAMS.map(p => p.id), 30);
+      // 计算天数
+      let days = 30;
+      if (dateRange.start && dateRange.end) {
+          const start = new Date(dateRange.start).getTime();
+          const end = new Date(dateRange.end).getTime();
+          days = Math.ceil((end - start) / (24 * 3600 * 1000));
+          if (days < 1) days = 1;
+      }
+
+      const response = await fetchMultiAnalysisData(DEVICES, PARAMS.map(p => p.id), days);
       if (response.code === 200 && response.data) {
         setData(response.data);
         setHasData(true); // Set hasData to true when data is loaded
@@ -413,8 +427,15 @@ export const AnalysisDashboard: React.FC = () => {
     const normalize = (values: number[], visibleSlice: { start: number, end: number }) => {
       const visibleValues = values.slice(visibleSlice.start, visibleSlice.end);
       if (visibleValues.length === 0) return values;
-      const min = Math.min(...visibleValues);
-      const max = Math.max(...visibleValues);
+      
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < visibleValues.length; i++) {
+          const v = visibleValues[i];
+          if (v < min) min = v;
+          if (v > max) max = v;
+      }
+
       const range = max - min;
       if (range === 0) return values.map(() => 0);
       return values.map(v => ((v - min) / range) * 100);

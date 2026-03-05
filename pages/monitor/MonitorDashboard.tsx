@@ -41,7 +41,8 @@ import {
 } from 'lucide-react';
 import { fetchCurrentProcessIndicator, fetchProductionExceptions } from '../../services/monitorMockService'; // 引入接口
 import { fetchLatestKnifeChanges } from '../../services/knifeChangeService'; // 引入换刀服务
-import { ProcessIndicator, ProductionExceptionRecord, KnifeChangeRecord, ProcessIndicatorDeviceConfig } from '../../types'; // 引入实体类
+import { fetchKnifeList } from '../../services/mockDataService'; // 引入刀盘列表服务
+import { ProcessIndicator, ProductionExceptionRecord, KnifeChangeRecord, ProcessIndicatorDeviceConfig, KnifeDisc } from '../../types'; // 引入实体类
 import { ProductionExceptionModal } from './ProductionExceptionModal'; // 引入异常弹窗
 import { ProcessIndicatorModal } from './ProcessIndicatorModal'; // 引入指标下发弹窗
 import { KnifeChangeRecordModal } from './KnifeChangeRecordModal'; // 引入换刀记录弹窗
@@ -51,6 +52,8 @@ import { PasswordVerificationModal } from './PasswordVerificationModal'; // 新�
 import { KnifeSelectionModal } from './KnifeSelectionModal'; // 新增：引入刀盘选择弹窗
 import { ProcessRecordModal } from './ProcessRecordModal'; // 新增：引入工艺回溯弹窗
 import { ProcessTraceabilityModal } from './ProcessTraceabilityModal'; // 恢复：引入工艺回溯弹窗
+import { MeasurementRangeSettings } from './components/MeasurementRangeSettings'; // 新增：测量值显示范围设置
+import { MeasurementSensitivitySettings } from './components/MeasurementSensitivitySettings'; // 新增：测量值灵敏度设置
 
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
@@ -223,14 +226,6 @@ const TrendChart: React.FC<TrendChartProps> = ({
             width: 2,
             color: color
           },
-          // 区域填充
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: color },
-              { offset: 1, color: '#ffffff' }
-            ]),
-            opacity: 0.15
-          },
           // 增加标准阈值区域 (markArea)
           markArea: (standardValue !== undefined && standardDev !== undefined) ? {
              silent: true, // 不响应鼠标事件
@@ -244,12 +239,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
                    name: '标准范围',
                    yAxis: standardValue - standardDev,
                    label: {
-                      show: true,
-                      position: 'insideRight',
-                      color: color,
-                      fontSize: 9,
-                      opacity: 0.7,
-                      formatter: 'STD'
+                      show: false
                    }
                  },
                  {
@@ -502,7 +492,7 @@ const MainInletNode = () => {
   const radius = 12;
 
   return (
-    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 relative overflow-hidden z-10 group/inlet">
+    <div className="w-[110px] h-[530px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 relative overflow-hidden z-10 group/inlet">
       
       {/* Header */}
       <div className="px-2 py-2 border-b border-slate-100 flex justify-center items-center bg-white h-[45px] z-20 relative">
@@ -617,7 +607,7 @@ const MainOutletNode = () => {
   const radius = 12;
 
   return (
-    <div className="w-[110px] h-[480px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden relative z-10 group/outlet">
+    <div className="w-[110px] h-[530px] bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden relative z-10 group/outlet">
       
       {/* Header */}
       <div className="px-2 py-2 border-b border-slate-100 flex justify-center items-center bg-white h-[45px] z-20 relative">
@@ -740,9 +730,11 @@ interface PipelineRefinerCardProps {
   isLast?: boolean;
   onViewTrend?: () => void; // 新增：查看趋势回调
   onKnifeClick?: () => void; // 新增：换刀操作回调
+  freenessSensitivity?: number; // 新增：叩解度灵敏度
+  fiberLengthSensitivity?: number; // 新增：纤维长度灵敏度
 }
 
-const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正转', simulateOverload = false, isFirst, isLast, onViewTrend, onKnifeClick }: PipelineRefinerCardProps) => {
+const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正转', simulateOverload = false, isFirst, isLast, onViewTrend, onKnifeClick, freenessSensitivity, fiberLengthSensitivity }: PipelineRefinerCardProps) => {
   const [data, setData] = useState(createInitialData());
   // 记录组件挂载时间，用于控制演示脚本
   const startTimeRef = useRef(Date.now());
@@ -771,7 +763,7 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
   const directionBadgeStyle = isCW ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-blue-50 text-blue-600 border-blue-200";
 
   return (
-    <div className={`bg-white rounded-xl border shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col relative h-[480px] group w-full ${isOverload ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'}`}>
+    <div className={`bg-white rounded-xl border shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col relative h-[530px] group w-full ${isOverload ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'}`}>
       
       {/* 1. 顶部标题栏 */}
       <div className={`px-4 py-2 border-b border-slate-100 flex justify-between items-center rounded-t-xl h-[45px] ${isOverload ? 'bg-red-50' : 'bg-white'}`}>
@@ -867,10 +859,28 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                  </span>
               </div>
            </div>
-           <div className="flex justify-between items-center text-xs">
-               <div className="flex items-center gap-1 text-slate-600">
-                  <Droplet size={10} className="text-blue-400"/>
-                  <span className="font-mono font-bold">{data.flow}</span> <span className="scale-90 text-slate-400">L/m</span>
+           {/* 1.3.2 流量与灵敏度 (合并为一行) */}
+           <div className="grid grid-cols-3 gap-1 mt-1 pt-2 border-t border-slate-100 items-end">
+               {/* 流量 */}
+               <div className="flex flex-col items-start">
+                   <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium mb-0.5">
+                       <Droplet size={10} className="text-blue-400"/> 流量
+                   </div>
+                   <div className="font-mono font-bold text-base text-slate-700 leading-none">
+                       {data.flow} <span className="text-[10px] font-normal text-slate-400 scale-90">L/m</span>
+                   </div>
+               </div>
+               
+               {/* 叩解度灵敏度 */}
+               <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-slate-400 font-medium mb-0.5 scale-90 whitespace-nowrap origin-bottom">叩解度灵敏度</span>
+                   <span className="font-mono font-bold text-base text-slate-700 leading-none">{freenessSensitivity?.toFixed(2) || data.freenessSensitivity}</span>
+               </div>
+
+               {/* 纤维长度灵敏度 */}
+               <div className="flex flex-col items-end">
+                   <span className="text-[10px] text-slate-400 font-medium mb-0.5 scale-90 whitespace-nowrap origin-bottom-right">纤维长度灵敏度</span>
+                   <span className="font-mono font-bold text-base text-slate-700 leading-none">{fiberLengthSensitivity?.toFixed(2) || data.fiberLengthSensitivity}</span>
                </div>
            </div>
       </div>
@@ -937,17 +947,6 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                 <span className="font-mono font-bold text-xs text-slate-600 flex justify-center items-center">
                    <ArrowDown size={10} className="text-slate-400"/> {data.gapChange}
                 </span>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-center items-end pt-2 border-t border-slate-200/50 mt-1">
-             <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-slate-400 scale-90 origin-center">叩解度灵敏度</span>
-                <span className="font-mono font-bold text-xs text-slate-500">{data.freenessSensitivity}</span>
-             </div>
-             <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-slate-400 scale-90 origin-center">纤维长度灵敏度</span>
-                <span className="font-mono font-bold text-xs text-slate-500">{data.fiberLengthSensitivity}</span>
              </div>
           </div>
       </div>
@@ -1412,12 +1411,18 @@ export const MonitorDashboard = () => {
     '4': 'Loading...',
     '5': 'Loading...'
   });
+  // 新增：存储刀盘详细信息，用于获取灵敏度参数
+  const [knifeDetails, setKnifeDetails] = useState<KnifeDisc[]>([]);
 
   // 新增：控制间隙趋势弹窗
   const [gapTrendData, setGapTrendData] = useState<{name: string, model: string} | null>(null);
   const [isGapTrendModalOpen, setIsGapTrendModalOpen] = useState(false);
   const [isMaterialFeedingModalOpen, setIsMaterialFeedingModalOpen] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false); // 工艺下发记录弹窗
+  
+  // 新增：测量值设置弹窗状态
+  const [isRangeSettingsOpen, setIsRangeSettingsOpen] = useState(false);
+  const [isSensitivitySettingsOpen, setIsSensitivitySettingsOpen] = useState(false);
 
   // 场景控制：随机全停机 与 高功率演示
   const [scenario, setScenario] = useState<{ allStopped: boolean; overloadTargetId: string | null }>({
@@ -1444,6 +1449,11 @@ export const MonitorDashboard = () => {
           '5': latest.device5_knife,
         });
       }
+    });
+
+    // 获取刀盘列表，用于获取灵敏度参数
+    fetchKnifeList().then(res => {
+      setKnifeDetails(res.data);
     });
 
     // 随机生成演示场景：
@@ -1507,6 +1517,20 @@ export const MonitorDashboard = () => {
   const getDeviceStatus = (defaultStatus: 'RUN' | 'STOP') => {
       if (scenario.allStopped) return 'STOP';
       return defaultStatus;
+  };
+
+  // 辅助函数：根据设备ID和转向获取灵敏度
+  const getSensitivity = (deviceId: string, type: 'freeness' | 'fiberLength') => {
+    const rotation = getDeviceRotation(deviceId);
+    const knife = knifeDetails.find(k => k.currentDevice === deviceId && k.status === 'in_use');
+    
+    if (!knife) return undefined;
+
+    if (type === 'freeness') {
+      return rotation === '正转' ? knife.freenessSensitivityForward : knife.freenessSensitivityReverse;
+    } else {
+      return rotation === '正转' ? knife.fiberLengthSensitivityForward : knife.fiberLengthSensitivityReverse;
+    }
   };
 
   // Mock 数据：过去 30 分钟 (5分钟间隔，7个点)
@@ -1574,6 +1598,8 @@ export const MonitorDashboard = () => {
                         isFirst={true}
                         onViewTrend={() => setGapTrendData({ name: '1# 精浆', model: currentKnives['1'] })}
                         onKnifeClick={() => initiateKnifeChange('1')} // 绑定换刀触发
+                        freenessSensitivity={getSensitivity('1', 'freeness')}
+                        fiberLengthSensitivity={getSensitivity('1', 'fiberLength')}
                     />
                     <PipelineRefinerCard 
                         id="2" name="精浆" 
@@ -1583,6 +1609,8 @@ export const MonitorDashboard = () => {
                         simulateOverload={scenario.overloadTargetId === '2'}
                         onViewTrend={() => setGapTrendData({ name: '2# 精浆', model: currentKnives['2'] })}
                         onKnifeClick={() => initiateKnifeChange('2')} // 绑定换刀触发
+                        freenessSensitivity={getSensitivity('2', 'freeness')}
+                        fiberLengthSensitivity={getSensitivity('2', 'fiberLength')}
                     />
                     <PipelineRefinerCard 
                         id="3" name="精浆" 
@@ -1592,6 +1620,8 @@ export const MonitorDashboard = () => {
                         simulateOverload={scenario.overloadTargetId === '3'}
                         onViewTrend={() => setGapTrendData({ name: '3# 精浆', model: currentKnives['3'] })}
                         onKnifeClick={() => initiateKnifeChange('3')} // 绑定换刀触发
+                        freenessSensitivity={getSensitivity('3', 'freeness')}
+                        fiberLengthSensitivity={getSensitivity('3', 'fiberLength')}
                     />
                     <PipelineRefinerCard 
                         id="4" name="精浆" 
@@ -1601,6 +1631,8 @@ export const MonitorDashboard = () => {
                         simulateOverload={scenario.overloadTargetId === '4'}
                         onViewTrend={() => setGapTrendData({ name: '4# 精浆', model: currentKnives['4'] })}
                         onKnifeClick={() => initiateKnifeChange('4')} // 绑定换刀触发
+                        freenessSensitivity={getSensitivity('4', 'freeness')}
+                        fiberLengthSensitivity={getSensitivity('4', 'fiberLength')}
                     />
                     <PipelineRefinerCard 
                         id="5" name="精浆" 
@@ -1611,6 +1643,8 @@ export const MonitorDashboard = () => {
                         isLast={true}
                         onViewTrend={() => setGapTrendData({ name: '5# 精浆', model: currentKnives['5'] })}
                         onKnifeClick={() => initiateKnifeChange('5')} // 绑定换刀触发
+                        freenessSensitivity={getSensitivity('5', 'freeness')}
+                        fiberLengthSensitivity={getSensitivity('5', 'fiberLength')}
                     />
                  </div>
                  <MainOutletNode />
@@ -1622,16 +1656,50 @@ export const MonitorDashboard = () => {
              {/* 趋势图 (独立卡片) */}
              <section className="flex-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2 shrink-0">
                       <Activity className="text-emerald-500" size={18}/> 工艺测量值趋势
                    </h3>
-                   <div className="flex gap-4 text-xs">
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 叩解度</div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-100"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> 纤维长度</div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-200"><span className="w-3 h-0.5 border-t-2 border-dotted border-slate-400"></span> 软测量 (预测)</div>
+                   <div className="flex items-center gap-4 overflow-hidden">
+                      {/* 图例区域：纯文本样式，去除背景和边框，使其看起来像静态标签 */}
+                      <div className="flex gap-3 text-xs shrink-0 select-none">
+                         <div className="flex items-center gap-1.5 text-slate-500">
+                            <span className="w-2 h-2 rounded-full bg-purple-500"></span> 
+                            <span>叩解度</span>
+                         </div>
+                         <div className="flex items-center gap-1.5 text-slate-500">
+                            <span className="w-2 h-2 rounded-full bg-orange-500"></span> 
+                            <span>纤维长度</span>
+                         </div>
+                         <div className="flex items-center gap-1.5 text-slate-500">
+                            <span className="w-4 h-0.5 border-t-2 border-dotted border-slate-400"></span> 
+                            <span>软测量(预测)</span>
+                         </div>
+                      </div>
+                      
+                      <div className="w-px h-3 bg-slate-200"></div>
+                      
+                      {/* 按钮区域：保留按钮样式，增加 hover 效果 */}
+                      <div className="flex gap-2 shrink-0">
+                         <button 
+                           onClick={() => setIsRangeSettingsOpen(true)}
+                           className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded text-[10px] text-slate-600 transition-all shadow-sm"
+                           title="测量值显示范围设置"
+                         >
+                           <Settings size={12} />
+                           范围设置
+                         </button>
+                         <button 
+                           onClick={() => setIsSensitivitySettingsOpen(true)}
+                           className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded text-[10px] text-slate-600 transition-all shadow-sm"
+                           title="测量值灵敏度设置"
+                         >
+                           <Settings size={12} />
+                           灵敏度设置
+                         </button>
+                      </div>
                    </div>
                 </div>
-                <div className="flex-1 flex flex-col gap-3 min-h-0">
+                  <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
                    {/* 叩解度图表 */}
                    <TrendChart 
                       title="叩解度" 
@@ -1720,6 +1788,16 @@ export const MonitorDashboard = () => {
       {/* 新增：工艺下发记录弹窗 */}
       {isRecordModalOpen && (
         <ProcessRecordModal onClose={() => setIsRecordModalOpen(false)} />
+      )}
+      
+      {/* 新增：测量值显示范围设置弹窗 */}
+      {isRangeSettingsOpen && (
+        <MeasurementRangeSettings onClose={() => setIsRangeSettingsOpen(false)} />
+      )}
+
+      {/* 新增：测量值灵敏度设置弹窗 */}
+      {isSensitivitySettingsOpen && (
+        <MeasurementSensitivitySettings onClose={() => setIsSensitivitySettingsOpen(false)} />
       )}
     </div>
   );

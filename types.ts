@@ -45,6 +45,11 @@ export interface KnifeDisc {
   mark?: string;
   remark?: string;
   currentDevice?: string;
+  // Sensitivity parameters
+  freenessSensitivityForward?: number;
+  freenessSensitivityReverse?: number;
+  fiberLengthSensitivityForward?: number;
+  fiberLengthSensitivityReverse?: number;
 }
 
 export interface KnifeUsageRecord {

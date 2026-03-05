@@ -1,5 +1,6 @@
 
 import { ApiResponse, DeviceRegistryItem, DeviceParam } from '../types';
+import { fetchKnifeList } from './mockDataService';
 
 /**
  * 设备管理专属数据服务
@@ -95,7 +96,7 @@ export const fetchDeviceRegistryList = async (): Promise<ApiResponse<DeviceRegis
 export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResponse<DeviceParam[]>> => {
   await new Promise(resolve => setTimeout(resolve, 200));
   
-  const baseParams = [
+  const baseParams: DeviceParam[] = [
       { id: '101', name: '额定功率', tag: 'rated_power', dataType: 'Float', unit: 'kW', value: '450' },
       { id: '102', name: '额定电压', tag: 'rated_voltage', dataType: 'Float', unit: 'V', value: '380' },
       { id: '103', name: '最大转速', tag: 'max_rpm', dataType: 'Integer', unit: 'rpm', value: '1500' },
@@ -103,12 +104,59 @@ export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResp
       { id: '105', name: '安装位置', tag: 'location_code', dataType: 'String', unit: '-', value: '2F-Area-B' },
   ];
 
-  // 针对 1#~5# 设备增加灵敏度参数
+  // 针对 1#~5# 设备增加灵敏度参数 (从刀盘获取)
   if (['1', '2', '3', '4', '5'].includes(deviceId)) {
-      baseParams.push(
-          { id: '106', name: '叩解度灵敏度', tag: 'freeness_sensitivity', dataType: 'Float', unit: '-', value: '0.85' },
-          { id: '107', name: '纤维长度灵敏度', tag: 'fiber_length_sensitivity', dataType: 'Float', unit: '-', value: '0.62' }
-      );
+      // 获取刀盘列表
+      const knifeRes = await fetchKnifeList();
+      const knives = knifeRes.data;
+      
+      // 查找当前设备使用的刀盘
+      const currentKnife = knives.find(k => k.currentDevice === deviceId && k.status === 'in_use');
+
+      if (currentKnife) {
+          baseParams.push(
+              { 
+                  id: '106-F', 
+                  name: '叩解度灵敏度 (正转)', 
+                  tag: 'freeness_sensitivity_forward', 
+                  dataType: 'Float', 
+                  unit: '-', 
+                  value: currentKnife.freenessSensitivityForward?.toFixed(2) || '0.85' 
+              },
+              { 
+                  id: '106-R', 
+                  name: '叩解度灵敏度 (反转)', 
+                  tag: 'freeness_sensitivity_reverse', 
+                  dataType: 'Float', 
+                  unit: '-', 
+                  value: currentKnife.freenessSensitivityReverse?.toFixed(2) || '0.82' 
+              },
+              { 
+                  id: '107-F', 
+                  name: '纤维长度灵敏度 (正转)', 
+                  tag: 'fiber_length_sensitivity_forward', 
+                  dataType: 'Float', 
+                  unit: '-', 
+                  value: currentKnife.fiberLengthSensitivityForward?.toFixed(2) || '0.62' 
+              },
+              { 
+                  id: '107-R', 
+                  name: '纤维长度灵敏度 (反转)', 
+                  tag: 'fiber_length_sensitivity_reverse', 
+                  dataType: 'Float', 
+                  unit: '-', 
+                  value: currentKnife.fiberLengthSensitivityReverse?.toFixed(2) || '0.60' 
+              }
+          );
+      } else {
+          // 如果没有刀盘，显示默认值或提示
+          baseParams.push(
+              { id: '106-F', name: '叩解度灵敏度 (正转)', tag: 'freeness_sensitivity_forward', dataType: 'Float', unit: '-', value: '-' },
+              { id: '106-R', name: '叩解度灵敏度 (反转)', tag: 'freeness_sensitivity_reverse', dataType: 'Float', unit: '-', value: '-' },
+              { id: '107-F', name: '纤维长度灵敏度 (正转)', tag: 'fiber_length_sensitivity_forward', dataType: 'Float', unit: '-', value: '-' },
+              { id: '107-R', name: '纤维长度灵敏度 (反转)', tag: 'fiber_length_sensitivity_reverse', dataType: 'Float', unit: '-', value: '-' }
+          );
+      }
   }
 
   return {

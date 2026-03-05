@@ -49,7 +49,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 500,
     mark: '-1 2025-09-27于1#精浆机下机',
     remark: '国产替代测试',
-    currentDevice: undefined
+    currentDevice: undefined,
+    freenessSensitivityForward: 0.85,
+    freenessSensitivityReverse: 0.82,
+    fiberLengthSensitivityForward: 0.62,
+    fiberLengthSensitivityReverse: 0.60
   },
   {
     id: 'KD-2023-002',
@@ -62,7 +66,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 600,
     mark: '-1',
     remark: '备用库A区调拨',
-    currentDevice: '3'
+    currentDevice: '3',
+    freenessSensitivityForward: 0.88,
+    freenessSensitivityReverse: 0.85,
+    fiberLengthSensitivityForward: 0.65,
+    fiberLengthSensitivityReverse: 0.63
   },
   {
     id: 'KD-2022-099',
@@ -74,7 +82,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     lastDownTime: '2025-01-15',
     estimatedLifespan: 800,
     mark: '2025-01-15于2#精浆机下机',
-    remark: '已报废，待处理'
+    remark: '已报废，待处理',
+    freenessSensitivityForward: 0.80,
+    freenessSensitivityReverse: 0.78,
+    fiberLengthSensitivityForward: 0.58,
+    fiberLengthSensitivityReverse: 0.55
   },
   {
     id: 'KD-2024-101',
@@ -87,7 +99,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 500,
     mark: '-1',
     remark: '新到货',
-    currentDevice: '1'
+    currentDevice: '1',
+    freenessSensitivityForward: 0.90,
+    freenessSensitivityReverse: 0.88,
+    fiberLengthSensitivityForward: 0.68,
+    fiberLengthSensitivityReverse: 0.66
   },
   {
     id: 'KD-2024-102',
@@ -100,7 +116,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 400,
     mark: '-1 2025-09-18于5#精浆机下机',
     remark: '试运行完成',
-    currentDevice: undefined
+    currentDevice: undefined,
+    freenessSensitivityForward: 0.82,
+    freenessSensitivityReverse: 0.80,
+    fiberLengthSensitivityForward: 0.60,
+    fiberLengthSensitivityReverse: 0.58
   },
   {
     id: 'KD-2023-055',
@@ -113,7 +133,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 600,
     mark: '-1',
     remark: '',
-    currentDevice: '2'
+    currentDevice: '2',
+    freenessSensitivityForward: 0.86,
+    freenessSensitivityReverse: 0.84,
+    fiberLengthSensitivityForward: 0.64,
+    fiberLengthSensitivityReverse: 0.62
   },
   {
     id: 'KD-2023-088',
@@ -126,7 +150,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 550,
     mark: '-1 2025-09-27于3#精浆机下机',
     remark: '性能表现优异',
-    currentDevice: undefined
+    currentDevice: undefined,
+    freenessSensitivityForward: 0.84,
+    freenessSensitivityReverse: 0.82,
+    fiberLengthSensitivityForward: 0.62,
+    fiberLengthSensitivityReverse: 0.60
   },
   {
     id: 'KD-2022-012',
@@ -139,7 +167,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 1000, 
     mark: '-1',
     remark: '状态良好，继续服役',
-    currentDevice: '4'
+    currentDevice: '4',
+    freenessSensitivityForward: 0.83,
+    freenessSensitivityReverse: 0.81,
+    fiberLengthSensitivityForward: 0.61,
+    fiberLengthSensitivityReverse: 0.59
   },
   {
     id: 'KD-2024-003',
@@ -151,7 +183,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     lastDownTime: '-',
     estimatedLifespan: 500,
     remark: '全新库存',
-    currentDevice: undefined
+    currentDevice: undefined,
+    freenessSensitivityForward: 0.92,
+    freenessSensitivityReverse: 0.90,
+    fiberLengthSensitivityForward: 0.70,
+    fiberLengthSensitivityReverse: 0.68
   },
   {
     id: 'KD-2024-004',
@@ -164,7 +200,11 @@ let MOCK_KNIFE_LIST: KnifeDisc[] = [
     estimatedLifespan: 600,
     mark: '-1',
     remark: '新工艺',
-    currentDevice: '5'
+    currentDevice: '5',
+    freenessSensitivityForward: 0.89,
+    freenessSensitivityReverse: 0.87,
+    fiberLengthSensitivityForward: 0.67,
+    fiberLengthSensitivityReverse: 0.65
   }
 ];
 
