@@ -21,7 +21,7 @@ export const SYSTEM_MODULES: NavItem[] = [
   },
   {
     id: 'analysis',
-    label: '数据分析',
+    label: '异常与操作分析',
     module: ModuleType.ANALYSIS,
     path: '/analysis'
   },
