@@ -825,7 +825,8 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                     />
                     {isRun && (
                       <div className={`absolute -bottom-2 -right-8 backdrop-blur border shadow-sm px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 z-20 ${directionBadgeStyle}`}>
-                          {isCW ? '正' : '反'}
+                          {isCW ? <RotateCw size={10} strokeWidth={3}/> : <RotateCcw size={10} strokeWidth={3}/>}
+                          {isCW ? '正转' : '反转'}
                       </div>
                     )}
                 </div>

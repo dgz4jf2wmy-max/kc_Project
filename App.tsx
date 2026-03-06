@@ -52,11 +52,21 @@ import { PasswordVerificationModal } from './pages/monitor/PasswordVerificationM
 
 import { DeletedProcessExceptions } from './pages/admin/DeletedProcessExceptions';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // ----------------------------------------------------------------------
 // Main APP
 // ----------------------------------------------------------------------
 
 const App: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+};
+
+const AppContent: React.FC = () => {
   // 简单的状态路由
   const [currentModule, setCurrentModule] = useState<ModuleType>(ModuleType.DIGITAL_TWIN);
   
@@ -69,12 +79,6 @@ const App: React.FC = () => {
 
   // 路由/模块切换处理器
   const handleNavigate = (module: ModuleType) => {
-    // 如果是班组绩效，需要验证口令
-    if (module === ModuleType.TEAM_PERFORMANCE) {
-      setPendingModule(module);
-      setShowPasswordModal(true);
-      return;
-    }
     setCurrentModule(module);
     setCurrentPath('/'); // 切换大模块时重置子路径
   };

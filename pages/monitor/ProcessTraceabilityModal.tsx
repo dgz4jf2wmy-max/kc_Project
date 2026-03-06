@@ -536,12 +536,12 @@ const StandardCard = ({ data }: { data: ProcessIndicator }) => (
               return (
                 <div key={config.deviceId} className="flex flex-col items-center gap-1.5">
                   <div className={`
-                    w-7 h-7 rounded-full flex items-center justify-center border shadow-sm transition-all
+                    w-6 h-6 rounded-full flex items-center justify-center border shadow-sm transition-all
                     ${isCW 
-                      ? 'bg-cyan-50 text-cyan-600 border-cyan-200' 
-                      : 'bg-orange-50 text-orange-600 border-orange-200'}
+                      ? 'text-emerald-600 bg-emerald-100 border-emerald-200' 
+                      : 'text-blue-600 bg-blue-100 border-blue-200'}
                   `}>
-                    <span className="text-xs font-bold">{isCW ? '正' : '反'}</span>
+                    <span className="text-[10px] font-bold leading-none">{isCW ? '正' : '反'}</span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-mono font-bold">{config.deviceId}</span>
                 </div>

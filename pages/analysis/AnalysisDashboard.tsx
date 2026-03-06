@@ -38,26 +38,31 @@ const calculateLinearRegression = (data: number[][]) => {
   let sumXY = 0;
   let sumXX = 0;
   let sumYY = 0;
+  let validN = 0;
 
   for (let i = 0; i < n; i++) {
     const x = data[i][0];
     const y = data[i][1];
+    if (!isFinite(x) || !isFinite(y)) continue;
+
     sumX += x;
     sumY += y;
     sumXY += x * y;
     sumXX += x * x;
     sumYY += y * y;
+    validN++;
   }
 
-  const k = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-  const b = (sumY - k * sumX) / n;
+  if (validN < 2) return null;
+
+  const denominator = validN * sumXX - sumX * sumX;
+  if (Math.abs(denominator) < 1e-10) return null; // Avoid division by zero
+
+  const k = (validN * sumXY - sumX * sumY) / denominator;
+  const b = (sumY - k * sumX) / validN;
 
   // Calculate R-Squared
-  // R^2 = 1 - (SS_res / SS_tot)
-  // SS_res = sum((y_i - (kx_i + b))^2)
-  // SS_tot = sum((y_i - mean_y)^2)
-  
-  const meanY = sumY / n;
+  const meanY = sumY / validN;
   let ssRes = 0;
   let ssTot = 0;
 
@@ -70,6 +75,8 @@ const calculateLinearRegression = (data: number[][]) => {
   for (let i = 0; i < n; i++) {
     const x = data[i][0];
     const y = data[i][1];
+    if (!isFinite(x) || !isFinite(y)) continue;
+
     const yPred = k * x + b;
     
     ssRes += Math.pow(y - yPred, 2);
@@ -79,11 +86,18 @@ const calculateLinearRegression = (data: number[][]) => {
     if (x > maxX) maxX = x;
   }
 
-  const rSquared = 1 - (ssRes / ssTot);
+  let rSquared = 0;
+  if (Math.abs(ssTot) < 1e-10) {
+     rSquared = (ssRes < 1e-10) ? 1 : 0;
+  } else {
+     rSquared = 1 - (ssRes / ssTot);
+  }
 
   // Generate start and end points for the line
-  regressionPoints.push([minX, k * minX + b]);
-  regressionPoints.push([maxX, k * maxX + b]);
+  if (isFinite(minX) && isFinite(maxX)) {
+      regressionPoints.push([minX, k * minX + b]);
+      regressionPoints.push([maxX, k * maxX + b]);
+  }
 
   return {
     k,
@@ -157,20 +171,28 @@ const TimeRangeSlider: React.FC<TimeRangeSliderProps> = ({ range, onChange }) =>
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !sliderRef.current) return;
-      const rect = sliderRef.current.getBoundingClientRect();
-      const percent = Math.min(Math.max(0, (e.clientX - rect.left) / rect.width * 100), 100);
-      
-      let newStart = range.start;
-      let newEnd = range.end;
+      try {
+        if (!isDragging || !sliderRef.current) return;
+        const rect = sliderRef.current.getBoundingClientRect();
+        if (rect.width === 0) return;
+        
+        const percent = Math.min(Math.max(0, (e.clientX - rect.left) / rect.width * 100), 100);
+        
+        if (isNaN(percent)) return;
 
-      if (isDragging === 'start') {
-        newStart = Math.min(percent, range.end - 5);
-      } else if (isDragging === 'end') {
-        newEnd = Math.max(percent, range.start + 5);
+        let newStart = range.start;
+        let newEnd = range.end;
+
+        if (isDragging === 'start') {
+          newStart = Math.min(percent, range.end - 5);
+        } else if (isDragging === 'end') {
+          newEnd = Math.max(percent, range.start + 5);
+        }
+        
+        onChange({ start: newStart, end: newEnd });
+      } catch (error) {
+        console.error('Error in TimeRangeSlider:', error);
       }
-      
-      onChange({ start: newStart, end: newEnd });
     };
 
     const handleMouseUp = () => { setIsDragging(null); };
@@ -300,52 +322,62 @@ export const AnalysisDashboard: React.FC = () => {
 
   // 处理开始时间变更
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newStart = e.target.value;
-    let newEnd = dateRange.end;
+    try {
+      const newStart = e.target.value;
+      let newEnd = dateRange.end;
 
-    if (newStart) {
-      const startTime = new Date(newStart).getTime();
-      
-      // 如果存在结束时间，进行校验
-      if (newEnd) {
-        const endTime = new Date(newEnd).getTime();
-        // 1. 结束时间不能早于开始时间
-        if (endTime < startTime) {
-          newEnd = newStart;
-        } 
-        // 2. 时间跨度不能超过1小时
-        else if (endTime - startTime > 3600 * 1000) {
-          newEnd = new Date(startTime + 3600 * 1000).toISOString().slice(0, 16);
+      if (newStart) {
+        const startTime = new Date(newStart).getTime();
+        
+        // 如果存在结束时间，进行校验
+        if (!isNaN(startTime) && newEnd) {
+          const endTime = new Date(newEnd).getTime();
+          // 1. 结束时间不能早于开始时间
+          if (!isNaN(endTime) && endTime < startTime) {
+            newEnd = newStart;
+          } 
+          // 2. 时间跨度不能超过1小时
+          else if (!isNaN(endTime) && endTime - startTime > 3600 * 1000) {
+            newEnd = new Date(startTime + 3600 * 1000).toISOString().slice(0, 16);
+          }
         }
       }
+      
+      setDateRange({ start: newStart, end: newEnd });
+    } catch (error) {
+      console.error('Error handling start time change:', error);
     }
-    
-    setDateRange({ start: newStart, end: newEnd });
   };
 
   // 处理结束时间变更
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEnd = e.target.value;
-    const startStr = dateRange.start;
-    
-    if (startStr && newEnd) {
-       const startTime = new Date(startStr).getTime();
-       const endTime = new Date(newEnd).getTime();
+    try {
+      const newEnd = e.target.value;
+      const startStr = dateRange.start;
+      
+      if (startStr && newEnd) {
+         const startTime = new Date(startStr).getTime();
+         const endTime = new Date(newEnd).getTime();
 
-       // 校验：不能早于开始时间
-       if (endTime < startTime) {
-         return; // 或者设为 startTime
-       }
-       
-       // 校验：不能超过1小时
-       if (endTime - startTime > 3600 * 1000) {
-         // 自动修正为开始时间+1小时
-         const maxEnd = new Date(startTime + 3600 * 1000).toISOString().slice(0, 16);
-         setDateRange(prev => ({ ...prev, end: maxEnd }));
-         return;
-       }
+         if (!isNaN(startTime) && !isNaN(endTime)) {
+             // 校验：不能早于开始时间
+             if (endTime < startTime) {
+               return; // 或者设为 startTime
+             }
+             
+             // 校验：不能超过1小时
+             if (endTime - startTime > 3600 * 1000) {
+               // 自动修正为开始时间+1小时
+               const maxEnd = new Date(startTime + 3600 * 1000).toISOString().slice(0, 16);
+               setDateRange(prev => ({ ...prev, end: maxEnd }));
+               return;
+             }
+         }
+      }
+      setDateRange(prev => ({ ...prev, end: newEnd }));
+    } catch (error) {
+      console.error('Error handling end time change:', error);
     }
-    setDateRange(prev => ({ ...prev, end: newEnd }));
   };
 
   // 视图范围 (0-100)
@@ -365,9 +397,11 @@ export const AnalysisDashboard: React.FC = () => {
     scatterY: ''
   });
 
-  const loadData = async () => {
+  const loadData = async (overrideRange?: { start: string, end: string }) => {
+    const range = overrideRange || dateRange;
+    
     // 校验：如果是“全部”类型，必须选择时间范围
-    if (selectedDataType === '全部' && (!dateRange.start || !dateRange.end)) {
+    if (selectedDataType === '全部' && (!range.start || !range.end)) {
       return;
     }
 
@@ -375,11 +409,14 @@ export const AnalysisDashboard: React.FC = () => {
     try {
       // 计算天数
       let days = 30;
-      if (dateRange.start && dateRange.end) {
-          const start = new Date(dateRange.start).getTime();
-          const end = new Date(dateRange.end).getTime();
-          days = Math.ceil((end - start) / (24 * 3600 * 1000));
-          if (days < 1) days = 1;
+      if (range.start && range.end) {
+          const start = new Date(range.start).getTime();
+          const end = new Date(range.end).getTime();
+          // Handle invalid dates
+          if (!isNaN(start) && !isNaN(end)) {
+             days = Math.ceil((end - start) / (24 * 3600 * 1000));
+             if (days < 1) days = 1;
+          }
       }
 
       const response = await fetchMultiAnalysisData(DEVICES, PARAMS.map(p => p.id), days);
@@ -400,17 +437,20 @@ export const AnalysisDashboard: React.FC = () => {
   // }, []);
 
   const updateChart = () => {
-    if (!chartInstance.current || Object.keys(data).length === 0) return;
+    try {
+      if (!chartInstance.current || Object.keys(data).length === 0) return;
 
-    // 获取所有时间点 (以 1# 设备的第一个参数为基准)
-    const baseData = data['1']?.[PARAMS[0].id];
-    if (!baseData || baseData.length === 0) return;
+      // 获取所有时间点 (以 1# 设备的第一个参数为基准)
+      const baseData = data['1']?.[PARAMS[0].id];
+      if (!baseData || baseData.length === 0) return;
 
-    // 使用完整数据，通过 dataZoom 控制显示范围
-    const times = baseData.map(d => {
-      const date = new Date(d.timestamp);
-      return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    });
+      // 使用完整数据，通过 dataZoom 控制显示范围
+      const times = baseData.map(d => {
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return '00:00';
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      });
+
 
     // Calculate visible range indices based on viewRange (0-100)
     const startIndex = Math.floor((viewRange.start / 100) * baseData.length);
@@ -739,10 +779,14 @@ export const AnalysisDashboard: React.FC = () => {
       series: series
     };
 
-    chartInstance.current.setOption(option, true); // true = not merge, replace
+      chartInstance.current.setOption(option, true); // true = not merge, replace
+    } catch (error) {
+      console.error('Error updating chart:', error);
+    }
   };
 
   const updateGanttChart = () => {
+    try {
       if (!ganttInstance.current || Object.keys(data).length === 0) return;
 
       // 使用完整数据
@@ -751,8 +795,10 @@ export const AnalysisDashboard: React.FC = () => {
 
       const times = baseData.map(d => {
         const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return '00:00';
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       });
+
 
       // 模拟甘特图数据 (使用绝对索引映射到完整时间轴)
       const totalLen = times.length;
@@ -871,37 +917,83 @@ export const AnalysisDashboard: React.FC = () => {
       };
 
       ganttInstance.current.setOption(option, true);
+    } catch (error) {
+      console.error('Error updating Gantt chart:', error);
+    }
   };
 
   useEffect(() => {
     // 1. Initialization Effect
     // Ensure DOM elements are ready
-    if (chartRef.current && !chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current);
-    }
-    if (ganttChartRef.current && !ganttInstance.current) {
-      ganttInstance.current = echarts.init(ganttChartRef.current);
-    }
+    try {
+      if (chartRef.current && !chartInstance.current) {
+        chartInstance.current = echarts.init(chartRef.current);
+      }
+      if (ganttChartRef.current && !ganttInstance.current) {
+        ganttInstance.current = echarts.init(ganttChartRef.current);
+      }
 
-    // Connect charts once initialized
-    if (chartInstance.current && ganttInstance.current) {
-       echarts.connect([chartInstance.current, ganttInstance.current]);
+      // Connect charts once initialized
+      if (chartInstance.current && ganttInstance.current) {
+         echarts.connect([chartInstance.current, ganttInstance.current]);
+         
+         // Manual Sync Fallback: Line Chart -> Gantt Chart
+         // Sometimes connect() misses the event from complex multi-grid charts
+         chartInstance.current.on('updateAxisPointer', (event: any) => {
+            const axesInfo = event.axesInfo;
+            if (axesInfo && axesInfo[0]) {
+                const dataIndex = axesInfo[0].dataIndex;
+                if (dataIndex != null && ganttInstance.current) {
+                    ganttInstance.current.dispatchAction({
+                        type: 'showTip',
+                        dataIndex: dataIndex,
+                        seriesIndex: 0 // Target the hidden line series
+                    });
+                }
+            }
+         });
+      }
+    } catch (error) {
+      console.error('Error initializing charts:', error);
     }
 
     const handleResize = () => {
-      chartInstance.current?.resize();
-      ganttInstance.current?.resize();
+      try {
+        chartInstance.current?.resize();
+        ganttInstance.current?.resize();
+      } catch (error) {
+        console.error('Error resizing charts:', error);
+      }
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chartInstance.current?.dispose();
-      chartInstance.current = null;
-      ganttInstance.current?.dispose();
-      ganttInstance.current = null;
+      try {
+        // Disconnect before dispose
+        echarts.disconnect([chartInstance.current, ganttInstance.current].filter(Boolean) as any);
+        
+        chartInstance.current?.dispose();
+        chartInstance.current = null;
+        ganttInstance.current?.dispose();
+        ganttInstance.current = null;
+      } catch (error) {
+        console.error('Error disposing charts:', error);
+      }
     };
-  }, [showDetailsAndTimeline, hasData]); // Re-run if showDetailsAndTimeline or hasData changes
+  }, []); // Run once on mount (since we don't unmount charts anymore)
+
+  // Effect to handle resize when visibility changes
+  useEffect(() => {
+     if (hasData && showDetailsAndTimeline) {
+        setTimeout(() => {
+           try {
+             ganttInstance.current?.resize();
+             chartInstance.current?.resize();
+           } catch(e) { console.error(e); }
+        }, 0);
+     }
+  }, [hasData, showDetailsAndTimeline]);
 
   useEffect(() => {
     // 2. Data Update Effect
@@ -1486,7 +1578,11 @@ export const AnalysisDashboard: React.FC = () => {
                       value={dateRange.end}
                       onChange={handleEndTimeChange}
                       min={dateRange.start}
-                      max={dateRange.start ? new Date(new Date(dateRange.start).getTime() + 3600 * 1000).toISOString().slice(0, 16) : undefined}
+                      max={(() => {
+                        if (!dateRange.start) return undefined;
+                        const t = new Date(dateRange.start).getTime();
+                        return isNaN(t) ? undefined : new Date(t + 3600 * 1000).toISOString().slice(0, 16);
+                      })()}
                     />
                   </div>
                 </div>
@@ -1517,11 +1613,18 @@ export const AnalysisDashboard: React.FC = () => {
                         }`}
                         onClick={() => {
                            // Set date range based on item (mock logic)
-                           const start = `${item.startDate.replace(/\//g, '-')} ${item.startTime}`;
-                           const end = `${item.startDate.replace(/\//g, '-')} ${item.endTime}`;
+                           // Prepend year if missing (mock data has 'MM-DD')
+                           const year = '2025';
+                           const dateStr = item.startDate.includes('-') && item.startDate.length <= 5 
+                              ? `${year}-${item.startDate}` 
+                              : item.startDate.replace(/\//g, '-');
+                           
+                           const start = `${dateStr}T${item.startTime}`;
+                           const end = `${dateStr}T${item.endTime}`;
+                           
                            setDateRange({ start, end });
                            setSelectedItemIndex(i);
-                           loadData();
+                           loadData({ start, end });
                            setIsPanelExpanded(false);
                         }}
                       >
@@ -1619,13 +1722,31 @@ export const AnalysisDashboard: React.FC = () => {
                                : 'bg-white/60 border-white/50 hover:bg-white/80 hover:border-blue-300'
                            }`}
                            onClick={() => {
-                              // Set date range based on record (mock logic)
-                              // Assuming record.timeRange is like "14:20 ~ 15:30" and we use today's date or a fixed date
-                              const [startStr, endStr] = record.timeRange.split('~').map(s => s.trim());
-                              const date = '2025-10-02'; // Mock date
-                              setDateRange({ start: `${date} ${startStr}`, end: `${date} ${endStr}` });
+                              // Set date range based on record
+                              if (!record.timeRange || !record.timeRange.includes('~')) return;
+                              
+                              const parts = record.timeRange.split('~').map(s => s.trim());
+                              if (parts.length < 2) return;
+
+                              const [startStr, endStr] = parts;
+                              const date = record.date || '2025-10-02'; 
+                              
+                              const start = `${date}T${startStr}`;
+                              let end = `${date}T${endStr}`;
+
+                              // Handle cross-day (if end < start, assume next day)
+                              if (endStr < startStr) {
+                                  const d = new Date(date);
+                                  if (!isNaN(d.getTime())) {
+                                      d.setDate(d.getDate() + 1);
+                                      const nextDay = d.toISOString().split('T')[0];
+                                      end = `${nextDay}T${endStr}`;
+                                  }
+                              }
+
+                              setDateRange({ start, end });
                               setSelectedItemIndex(record.id);
-                              loadData();
+                              loadData({ start, end });
                               setIsPanelExpanded(false);
                            }}
                         >
@@ -1662,14 +1783,20 @@ export const AnalysisDashboard: React.FC = () => {
                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
              </div>
            )}
-           {hasData ? (
-             <div 
-               ref={chartRef} 
-               className="w-full"
-               style={{ height: `${Math.max(100, activeParams.length * 240 + 100)}px` }} // 动态高度：每个图表 240px + 顶部底部留白
-             />
-           ) : (
-             <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+           
+           {/* Chart Container - Always Rendered but Hidden if no data */}
+           <div 
+             ref={chartRef} 
+             className="w-full"
+             style={{ 
+               height: `${Math.max(100, activeParams.length * 240 + 100)}px`,
+               display: hasData ? 'block' : 'none'
+             }} 
+           />
+
+           {/* Empty State */}
+           {!hasData && (
+             <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 absolute inset-0 pointer-events-none">
                 <Search size={48} className="mb-4 opacity-50" />
                 <p>请选择时间范围进行搜索，或选择工艺异常/回溯记录</p>
              </div>
@@ -1677,8 +1804,9 @@ export const AnalysisDashboard: React.FC = () => {
         </div>
 
         {/* Bottom Floating Panel: Gantt Chart + Time Slider */}
-        {hasData && showDetailsAndTimeline && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border border-slate-100 z-10 flex flex-col overflow-hidden">
+        <div className={`absolute bottom-4 left-4 right-4 bg-white rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border border-slate-100 z-10 flex flex-col overflow-hidden transition-all duration-300 ${
+           hasData && showDetailsAndTimeline ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}>
            {/* Gantt Chart Area */}
            <div className="w-full h-[80px] border-b border-slate-50 relative">
               <div ref={ganttChartRef} className="w-full h-full" />
@@ -1692,7 +1820,6 @@ export const AnalysisDashboard: React.FC = () => {
               />
            </div>
         </div>
-        )}
 
       </div>
     </div>

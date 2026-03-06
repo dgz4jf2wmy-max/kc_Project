@@ -37,6 +37,28 @@ import {
   QualifiedRateStats // 引入实体类
 } from '../../types';
 
+const pageScrollbarStyle = `
+  /* Custom Scrollbar for TeamPerformance Page */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent; 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+`;
+
 // --- 辅助组件 ---
 
 // Helper: 生成模拟对比数据
@@ -277,20 +299,28 @@ const StartupChartsSection: React.FC = () => {
                             <table className={StdTable.Table}>
                                 <thead className={StdTable.Thead}>
                                     <tr>
-                                        <th className={StdTable.Th}>时间</th>
-                                        {chartType === 'daily_startup' && (
+                                        <th rowSpan={2} className={`${StdTable.Th} align-middle border-b border-gray-200`}>时间</th>
+                                        <th colSpan={chartType === 'daily_startup' ? 3 : 1} className={`${StdTable.Th} text-center border-b border-gray-200 bg-gray-50/50`}>查询数据</th>
+                                        {comparisonMode !== 'none' && (
+                                            <th colSpan={1} className={`${StdTable.Th} text-center border-b border-gray-200 bg-blue-50/30`}>
+                                                {comparisonMode === 'yoy' ? '同比数据' : '环比数据'}
+                                            </th>
+                                        )}
+                                    </tr>
+                                    <tr>
+                                        {chartType === 'daily_startup' ? (
                                             <>
                                                 <th className={StdTable.Th}>开机时长 (分钟)</th>
-                                                {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
                                                 <th className={StdTable.Th}>班组</th>
                                                 <th className={StdTable.Th}>值班类型</th>
                                             </>
+                                        ) : (
+                                            <th className={StdTable.Th}>平均时长 (分钟)</th>
                                         )}
-                                        {chartType === 'daily_avg' && (
-                                            <>
-                                                <th className={StdTable.Th}>平均开机时长 (分钟)</th>
-                                                {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
-                                            </>
+                                        {comparisonMode !== 'none' && (
+                                            <th className={StdTable.Th}>
+                                                {comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)
+                                            </th>
                                         )}
                                     </tr>
                                 </thead>
@@ -304,15 +334,15 @@ const StartupChartsSection: React.FC = () => {
                                                 {chartType === 'daily_startup' && (
                                                     <>
                                                         <td className={`${StdTable.Td} font-bold text-gray-800`}>{(item as DailyStartupDurationDetail).duration}</td>
+                                                        <td className={StdTable.Td}>
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold border ${(item as any).team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : (item as any).team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : (item as any).team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{(item as DailyStartupDurationDetail).team}</span>
+                                                        </td>
+                                                        <td className={`${StdTable.Td} text-gray-600`}>{(item as DailyStartupDurationDetail).shiftType}</td>
                                                         {comparisonMode !== 'none' && (
                                                             <td className={`${StdTable.Td} text-gray-500 font-mono`}>
                                                                 {((item as DailyStartupDurationDetail).duration * (0.9 + Math.random() * 0.2)).toFixed(0)}
                                                             </td>
                                                         )}
-                                                        <td className={StdTable.Td}>
-                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold border ${(item as any).team === '甲' ? 'bg-blue-50 text-blue-700 border-blue-100' : (item as any).team === '乙' ? 'bg-green-50 text-green-700 border-green-100' : (item as any).team === '丙' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-purple-50 text-purple-700 border-purple-100'}`}>{(item as DailyStartupDurationDetail).team}</span>
-                                                        </td>
-                                                        <td className={`${StdTable.Td} text-gray-600`}>{(item as DailyStartupDurationDetail).shiftType}</td>
                                                     </>
                                                 )}
                                                 {chartType === 'daily_avg' && (
@@ -577,11 +607,23 @@ const StabilityDistributionSection: React.FC = () => {
                             <table className={StdTable.Table}>
                                 <thead className={StdTable.Thead}>
                                     <tr>
-                                        <th className={StdTable.Th}>开机时间</th>
+                                        <th rowSpan={2} className={`${StdTable.Th} align-middle border-b border-gray-200`}>开机时间</th>
+                                        <th colSpan={3} className={`${StdTable.Th} text-center border-b border-gray-200 bg-gray-50/50`}>查询数据</th>
+                                        {comparisonMode !== 'none' && (
+                                            <th colSpan={1} className={`${StdTable.Th} text-center border-b border-gray-200 bg-blue-50/30`}>
+                                                {comparisonMode === 'yoy' ? '同比数据' : '环比数据'}
+                                            </th>
+                                        )}
+                                    </tr>
+                                    <tr>
                                         <th className={StdTable.Th}>班组</th>
                                         <th className={StdTable.Th}>值班类型</th>
                                         <th className={StdTable.Th}>开机耗时 (分钟)</th>
-                                        {comparisonMode !== 'none' && <th className={StdTable.Th}>{comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)</th>}
+                                        {comparisonMode !== 'none' && (
+                                            <th className={StdTable.Th}>
+                                                {comparisonMode === 'yoy' ? '去年同期' : '上月同期'} (分钟)
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm">
@@ -971,10 +1013,18 @@ const QualifiedRateSection: React.FC = () => {
                             <table className={StdTable.Table}>
                                 <thead className={StdTable.Thead}>
                                     <tr>
-                                        <th className={StdTable.Th}>时间</th>
+                                        <th rowSpan={2} className={`${StdTable.Th} align-middle border-b border-gray-200`}>时间</th>
+                                        <th colSpan={2} className={`${StdTable.Th} text-center border-b border-gray-200 bg-gray-50/50`}>查询数据</th>
+                                        {comparisonMode !== 'none' && (
+                                            <th colSpan={1} className={`${StdTable.Th} text-center border-b border-gray-200 bg-blue-50/30`}>
+                                                {comparisonMode === 'yoy' ? '同比数据' : '环比数据'}
+                                            </th>
+                                        )}
+                                    </tr>
+                                    <tr>
                                         <th className={StdTable.Th}>班组</th>
                                         <th className={StdTable.Th}>
-                                            {detailType === 'freeness' ? '叩解度合格率 (%)' : '纤维长度合格率 (%)'}
+                                            {detailType === 'freeness' ? '合格率 (%)' : '合格率 (%)'}
                                         </th>
                                         {comparisonMode !== 'none' && (
                                             <th className={StdTable.Th}>
@@ -1023,10 +1073,15 @@ const QualifiedRateSection: React.FC = () => {
     );
 };
 
+import { PasswordVerificationModal } from '../../pages/monitor/PasswordVerificationModal';
+
 /**
  * 班组绩效管理页面 (主组件)
  */
 export const TeamPerformance: React.FC = () => {
+  // 0. 口令验证状态
+  const [isVerified, setIsVerified] = useState(false);
+
   // ... (keep existing setup code) ...
   // 1. 初始化默认时间
   const today = new Date();
@@ -1065,6 +1120,21 @@ export const TeamPerformance: React.FC = () => {
 
   return (
     <AdminPageWrapper>
+      <style>{pageScrollbarStyle}</style>
+      {/* 口令验证遮罩 */}
+      {!isVerified && (
+        <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center">
+           <PasswordVerificationModal 
+              onSuccess={() => setIsVerified(true)} 
+              onClose={() => {
+                // 验证未通过或取消时，无法查看页面。
+                // 由于无法直接调用路由跳转，此处保持遮罩状态。
+                // 用户可以选择刷新或使用浏览器后退。
+              }} 
+           />
+        </div>
+      )}
+
       {/* 顶部搜索栏 */}
       <SearchFilterCard
         actions={
