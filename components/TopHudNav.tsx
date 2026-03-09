@@ -68,7 +68,7 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
 
   return (
     <header className={`fixed top-0 left-0 w-full z-50 px-8 py-5 flex justify-between items-center pointer-events-none transition-colors duration-300 ${headerBgClass}`}>
-      {/* 左侧区域：标题 + 视图切换 (允许交互) */}
+      {/* 左侧区域：标题 (允许交互) */}
       <div className="flex items-center gap-6 pointer-events-auto">
         {/* 系统标识 */}
         <div className="flex items-center gap-3">
@@ -77,9 +77,10 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
             智慧磨浆平台
           </h1>
         </div>
+      </div>
 
-        <div className={`w-px h-8 mx-2 ${dividerColor}`}></div>
-
+      {/* 右侧区域：视图切换 + 后台管理模式切换 (允许交互) */}
+      <div className="flex items-center gap-4 pointer-events-auto">
         {/* 视图切换下拉框 */}
         <div className="relative" ref={dropdownRef}>
           <button
@@ -98,7 +99,7 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
 
           {/* 下拉菜单主体 */}
           {isDropdownOpen && (
-            <div className={`absolute top-full left-0 mt-2 w-48 border rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-left
+            <div className={`absolute top-full right-0 mt-2 w-48 border rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right
               ${isLightMode ? 'bg-white/95 border-gray-200' : 'bg-system-card/95 border-white/10'}
             `}>
               <div className="py-1">
@@ -130,10 +131,9 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
             </div>
           )}
         </div>
-      </div>
 
-      {/* 右侧区域：后台管理模式切换 (允许交互) */}
-      <div className="pointer-events-auto">
+        <div className={`w-px h-6 ${dividerColor}`}></div>
+
         <SystemButton 
           variant="secondary"
           className={`text-sm px-4 py-2 backdrop-blur-sm ${
