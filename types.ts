@@ -8,6 +8,7 @@ export enum ModuleType {
   MONITORING = 'monitoring',
   ANALYSIS = 'analysis',
   TEAM_PERFORMANCE = 'team_performance',
+  DATA_ANALYSIS = 'data_analysis',
   DELETED_EXCEPTIONS = 'deleted_exceptions',
   ADMIN = 'admin'
 }

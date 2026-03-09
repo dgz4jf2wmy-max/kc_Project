@@ -32,6 +32,12 @@ export const SYSTEM_MODULES: NavItem[] = [
     path: '/performance'
   },
   {
+    id: 'data-analysis',
+    label: '数据分析',
+    module: ModuleType.DATA_ANALYSIS,
+    path: '#'
+  },
+  {
     id: 'admin',
     label: '后台管理',
     module: ModuleType.ADMIN,

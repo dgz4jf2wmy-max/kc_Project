@@ -74,7 +74,7 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
         <div className="flex items-center gap-3">
           <div className="w-2 h-8 bg-system-primary rounded-full"></div>
           <h1 className={`text-xl font-bold tracking-widest uppercase text-shadow-sm transition-colors ${titleColor}`}>
-            精浆工段系统 <span className="text-xs text-system-primary align-top">PRO</span>
+            智慧磨浆平台
           </h1>
         </div>
 
@@ -105,7 +105,11 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
                 {viewModules.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => handleSelect(item.module)}
+                    onClick={() => {
+                      if (item.module !== ModuleType.DATA_ANALYSIS) {
+                        handleSelect(item.module);
+                      }
+                    }}
                     className={`
                       w-full text-left px-5 py-3 text-sm transition-colors flex items-center justify-between
                       ${currentModule === item.module 
@@ -113,6 +117,7 @@ export const TopHudNav: React.FC<TopHudNavProps> = ({ currentModule, onNavigate,
                         : isLightMode 
                           ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' 
                           : 'text-gray-400 hover:bg-white/5 hover:text-white'}
+                      ${item.module === ModuleType.DATA_ANALYSIS ? 'cursor-default opacity-50' : ''}
                     `}
                   >
                     {item.label}
