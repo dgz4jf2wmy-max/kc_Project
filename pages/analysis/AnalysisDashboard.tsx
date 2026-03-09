@@ -290,6 +290,7 @@ export const AnalysisDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Record<string, Record<string, AnalysisDataPoint[]>>>({});
   const [hasData, setHasData] = useState(false); // New state to control data visibility
+  const [operationPopover, setOperationPopover] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
   
   // Process Exceptions State
   const [processExceptions, setProcessExceptions] = useState<ProcessExceptionItem[]>([]);
@@ -747,7 +748,20 @@ export const AnalysisDashboard: React.FC = () => {
                 { offset: 0, color: `${paramInfo.color}15` },
                 { offset: 1, color: `${paramInfo.color}00` }
               ])
-            }
+            },
+            markArea: (selectedDataType === '工艺回溯' && (!useSingleGrid || gridIndex === 0)) ? {
+              silent: true,
+              data: [
+                [
+                  { xAxis: times[Math.floor(times.length * 0.23)] || times[0], itemStyle: { color: 'rgba(96, 165, 250, 0.2)' } },
+                  { xAxis: times[Math.floor(times.length * 0.31)] || times[times.length - 1] }
+                ],
+                [
+                  { xAxis: times[Math.floor(times.length * 0.73)] || times[0], itemStyle: { color: 'rgba(251, 191, 36, 0.2)' } },
+                  { xAxis: times[Math.floor(times.length * 0.81)] || times[times.length - 1] }
+                ]
+              ]
+            } : undefined
           });
 
           if (!useSingleGrid) gridIndex++;
@@ -951,6 +965,19 @@ export const AnalysisDashboard: React.FC = () => {
                     });
                 }
             }
+         });
+
+         // Add click event for Gantt Chart to show operation popover
+         ganttInstance.current.getZr().on('click', (params: any) => {
+             if (params && params.event) {
+                 const e = params.event;
+                 // Position the popover near the click, adjusting so it doesn't go off-screen
+                 setOperationPopover({ 
+                     visible: true, 
+                     x: e.clientX - 200, // Center horizontally relative to click
+                     y: e.clientY - 420  // Place above the click (Gantt is at the bottom)
+                 });
+             }
          });
       }
     } catch (error) {
@@ -1261,7 +1288,14 @@ export const AnalysisDashboard: React.FC = () => {
             <>
               {/* 4. 工艺操作 (Original Style) */}
               <div className="p-4">
-                <div className="flex items-center gap-2 mb-3">
+                <div 
+                  className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setOperationPopover({ visible: true, x: rect.left - 420, y: rect.top });
+                  }}
+                  title="点击查看操作记录"
+                >
                   <div className="w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-[10px]">!</div>
                   <span className="font-bold text-slate-800">工艺操作</span>
                 </div>
@@ -1272,8 +1306,15 @@ export const AnalysisDashboard: React.FC = () => {
                     { time: '17:24:31~17:25:07', device: '3#', action: '累计进刀', val: '0.05', dur: '6S', icon: <div className="flex"><RefreshCw size={12}/><User size={12}/></div>, color: 'text-cyan-500' },
                     { time: '17:24:31~17:25:07', device: '4#', action: '累计退刀', val: '0.03', dur: '4S', icon: <RefreshCw size={12}/>, color: 'text-orange-500' },
                   ].map((op, i) => (
-                    <div key={i} className="relative pl-6">
-                      <div className="absolute left-[8px] top-1 w-2 h-2 rounded-full bg-slate-400 ring-4 ring-white"></div>
+                    <div 
+                      key={i} 
+                      className="relative pl-6 cursor-pointer hover:bg-slate-50 p-1 -ml-1 rounded transition-colors"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setOperationPopover({ visible: true, x: rect.left - 420, y: rect.top });
+                      }}
+                    >
+                      <div className="absolute left-[8px] top-2 w-2 h-2 rounded-full bg-slate-400 ring-4 ring-white"></div>
                       <div className="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
                         <Calendar size={10}/> {op.time}
                       </div>
@@ -1808,7 +1849,7 @@ export const AnalysisDashboard: React.FC = () => {
            hasData && showDetailsAndTimeline ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}>
            {/* Gantt Chart Area */}
-           <div className="w-full h-[80px] border-b border-slate-50 relative">
+           <div className="w-full h-[80px] border-b border-slate-50 relative cursor-pointer" title="点击查看操作记录">
               <div ref={ganttChartRef} className="w-full h-full" />
            </div>
            
@@ -1820,6 +1861,74 @@ export const AnalysisDashboard: React.FC = () => {
               />
            </div>
         </div>
+
+        {/* Operation Records Popover */}
+        {operationPopover.visible && (
+          <>
+            <div className="fixed inset-0 z-[90]" onClick={() => setOperationPopover({ ...operationPopover, visible: false })}></div>
+            <div 
+              className="fixed z-[100] bg-white rounded-xl shadow-2xl w-[400px] max-h-[80vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200"
+              style={{ left: Math.max(16, operationPopover.x), top: Math.max(16, Math.min(window.innerHeight - 400, operationPopover.y)) }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  <ListIcon size={16} className="text-purple-600"/>
+                  <span className="font-bold text-slate-800 text-sm">操作记录</span>
+                </div>
+                <button onClick={() => setOperationPopover({ ...operationPopover, visible: false })} className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto">
+                {/* Table Header */}
+                <div className="flex text-[12px] text-slate-400 pb-2 px-2 border-b border-slate-200 mb-2">
+                   <span className="w-16">时间</span>
+                   <span className="w-10 text-center">设备</span>
+                   <span className="w-10 text-center">类型</span>
+                   <span className="w-12 text-center">数值</span>
+                   <span className="flex-1 text-right">时长来源</span>
+                </div>
+
+                {/* Table Body */}
+                <div className="space-y-0">
+                   {hasData ? [
+                     { id: 'l1', startTime: '2025-10-02 15:10:49', deviceName: '1#', type: '累计进刀', gapChange: 0.01, duration: '2s', source: '人工操作' },
+                     { id: 'l2', startTime: '2025-10-02 17:21:12', deviceName: '3#', type: '累计进刀', gapChange: 0.03, duration: '6s', source: '人工操作' },
+                     { id: 'l3', startTime: '2025-10-02 17:24:31', deviceName: '3#', type: '累计进刀', gapChange: 0.05, duration: '6s', source: '自动操作' },
+                     { id: 'l4', startTime: '2025-10-02 17:24:31', deviceName: '4#', type: '累计退刀', gapChange: -0.03, duration: '4s', source: '自动操作' },
+                   ].map((log, idx, arr) => {
+                      const isAdvance = log.type === '累计进刀';
+                      const timeDisplay = log.startTime.split(' ')[1];
+
+                      return (
+                          <div 
+                              key={log.id}
+                              className={`flex items-center text-xs py-2.5 px-2 transition-all rounded-md group border-l-4 border-transparent hover:bg-slate-50 hover:shadow-sm hover:border-slate-200 cursor-default
+                                  ${idx !== arr.length-1 ? 'border-b-slate-100 border-b-[1px]' : ''}
+                              `}
+                          >
+                             <span className="w-16 font-mono text-slate-500">{timeDisplay}</span>
+                             <span className="w-10 text-center font-bold text-slate-700">{log.deviceName.replace('精浆机','')}</span>
+                             <span className={`w-10 text-center font-bold ${isAdvance ? 'text-emerald-600' : 'text-orange-600'}`}>
+                                {isAdvance ? '进刀' : '退刀'}
+                             </span>
+                             <span className="w-12 text-center font-mono text-slate-800">{log.gapChange > 0 ? `+${log.gapChange}` : log.gapChange}</span>
+                             <div className="flex-1 flex items-center justify-end gap-1 font-mono text-slate-500">
+                                <span>{log.duration}</span>
+                                {log.source === '人工操作' 
+                                   ? <User size={12} className="text-slate-400 group-hover:text-slate-600"/> 
+                                   : <RefreshCw size={12} className="text-blue-400 group-hover:text-blue-600"/>}
+                             </div>
+                          </div>
+                      );
+                   }) : (
+                      <div className="text-center py-8 text-sm text-slate-400">暂无数据</div>
+                   )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
     </div>
