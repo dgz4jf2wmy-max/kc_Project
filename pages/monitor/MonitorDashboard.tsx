@@ -55,6 +55,13 @@ import { ProcessTraceabilityModal } from './ProcessTraceabilityModal'; // 恢复
 import { MeasurementRangeSettings } from './components/MeasurementRangeSettings'; // 新增：测量值显示范围设置
 import { MeasurementSensitivitySettings } from './components/MeasurementSensitivitySettings'; // 新增：测量值灵敏度设置
 
+// 引入智能预警相关组件与服务
+import { SmartAlertNotification } from './components/SmartAlertNotification';
+import { SmartAlertModal } from './components/SmartAlertModal';
+import { SmartAlertHistoryDrawer } from './components/SmartAlertHistoryDrawer';
+import { SmartAlertFloatingButton } from './components/SmartAlertFloatingButton';
+import { fetchCurrentAlert, recordAlertAction, SmartAlertRecord } from '../../services/smartAlertService';
+
 // --- 常量定义：绝对坐标系统 ---
 const CONFIG = {
   visualHeight: 140,    // 视觉区高度
@@ -1417,6 +1424,37 @@ export const MonitorDashboard = () => {
   const [isRangeSettingsOpen, setIsRangeSettingsOpen] = useState(false);
   const [isSensitivitySettingsOpen, setIsSensitivitySettingsOpen] = useState(false);
 
+  // --- 智能预警相关状态 ---
+  const [activeAlert, setActiveAlert] = useState<SmartAlertRecord | null>(null);
+  const [isSmartAlertModalOpen, setIsSmartAlertModalOpen] = useState(false);
+  const [isSmartAlertDrawerOpen, setIsSmartAlertDrawerOpen] = useState(false);
+
+  // 模拟初始化获取预警
+  useEffect(() => {
+    fetchCurrentAlert().then(alert => {
+      if (alert) {
+        setActiveAlert(alert);
+      }
+    });
+  }, []);
+
+  const handleAlertConfirm = async () => {
+    if (activeAlert) {
+      await recordAlertAction(activeAlert.id, 'confirmed');
+      setActiveAlert(null);
+      setIsSmartAlertModalOpen(false);
+    }
+  };
+
+  const handleAlertCancel = async () => {
+    if (activeAlert) {
+      await recordAlertAction(activeAlert.id, 'canceled');
+      setActiveAlert(null);
+      setIsSmartAlertModalOpen(false);
+    }
+  };
+  // --- 智能预警相关状态结束 ---
+
   // 场景控制：随机全停机 与 高功率演示
   const [scenario, setScenario] = useState<{ allStopped: boolean; overloadTargetId: string | null }>({
     allStopped: false,
@@ -1552,8 +1590,30 @@ export const MonitorDashboard = () => {
   const currentFiberSoft = 0.82; // T-0
 
   return (
-    <div className="h-full w-full flex flex-col font-sans text-slate-800 page-light-scroll">
+    <div className="h-full w-full flex flex-col font-sans text-slate-800 page-light-scroll relative">
       <style>{scrollbarStyle}</style>
+
+      {/* --- 智能预警组件 --- */}
+      {activeAlert ? (
+        <SmartAlertNotification 
+          onClick={() => setIsSmartAlertModalOpen(true)} 
+          onDismiss={() => setActiveAlert(null)}
+        />
+      ) : (
+        <SmartAlertFloatingButton onClick={() => setIsSmartAlertDrawerOpen(true)} />
+      )}
+
+      <SmartAlertModal 
+        isOpen={isSmartAlertModalOpen} 
+        onConfirm={handleAlertConfirm} 
+        onCancel={handleAlertCancel} 
+      />
+
+      <SmartAlertHistoryDrawer 
+        isOpen={isSmartAlertDrawerOpen} 
+        onClose={() => setIsSmartAlertDrawerOpen(false)} 
+      />
+      {/* --- 智能预警组件结束 --- */}
       
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* 左侧边栏 - 20% */}
