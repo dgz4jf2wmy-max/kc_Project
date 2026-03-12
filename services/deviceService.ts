@@ -102,6 +102,7 @@ export const fetchDeviceStaticParams = async (deviceId: string): Promise<ApiResp
       { id: '103', name: '最大转速', tag: 'max_rpm', dataType: 'Integer', unit: 'rpm', value: '1500' },
       { id: '104', name: '设计产能', tag: 'design_capacity', dataType: 'Float', unit: 't/h', value: '120' },
       { id: '105', name: '安装位置', tag: 'location_code', dataType: 'String', unit: '-', value: '2F-Area-B' },
+      { id: '106', name: '间隙', tag: 'gap_sensor_node', dataType: 'String', unit: '-', value: 'GAP_SENSOR_01' },
   ];
 
   // 针对 1#~5# 设备增加灵敏度参数 (从刀盘获取)
@@ -217,11 +218,11 @@ export const fetchDeviceDynamicParams = async (deviceId: string): Promise<ApiRes
         source: 'FT_Main_01' 
       },
       // 移除：温度 (dyn-06)
-      // 新增：刀盘间隙 (需求关联)
+      // 新增：间隙 (需求关联)
       { 
         id: 'dyn-07', 
-        name: '刀盘间隙', 
-        description: '实时刀盘间隙值 (Type: Number .00)', 
+        name: '间隙', 
+        description: '实时间隙值 (Type: Number .00)', 
         upperLimit: '2.00', 
         lowerLimit: '0.00', 
         source: 'GAP_SENSOR_01' 

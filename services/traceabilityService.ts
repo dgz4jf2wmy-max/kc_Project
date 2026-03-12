@@ -180,12 +180,12 @@ export const PARAM_CONFIGS = [
   },
   { 
     id: 'gap', 
-    name: '刀盘间隙', 
+    name: '间隙', 
     type: 'multi', 
     icon: Gauge, 
     unit: 'mm', 
     group: 'device',
-    linkedDeviceParam: 'dyn-07' // 关联精浆机刀盘间隙 (新增)
+    linkedDeviceParam: 'dyn-07' // 关联精浆机间隙 (新增)
   },
   { 
     id: 'flow', 

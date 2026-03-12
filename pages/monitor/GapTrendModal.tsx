@@ -117,7 +117,7 @@ export const GapTrendModal: React.FC<GapTrendModalProps> = ({ onClose, deviceNam
 
   return (
     <StandardModal
-      title="刀盘间隙趋势 (自然周)"
+      title="间隙趋势 (自然周)"
       onClose={onClose}
       width="w-[700px]"
       footer={

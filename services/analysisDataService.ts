@@ -58,7 +58,7 @@ const getParamConfig = (paramId: string) => {
     case 'dyn-04': return { base: 0.25, variance: 0.05 }; // 压差
     case 'dyn-05': return { base: 135, variance: 15 }; // 流量
     case 'dyn-06': return { base: 70, variance: 10 }; // 温度
-    case 'dyn-07': return { base: 1.0, variance: 0.5 }; // 刀盘间隙
+    case 'dyn-07': return { base: 1.0, variance: 0.5 }; // 间隙
     case 'beatingDegree': return { base: 55, variance: 2 }; // 叩解度 (参考图片 54±1)
     case 'fiberLength': return { base: 0.8, variance: 0.05 }; // 纤维长度 (参考图片 0.8±0.05)
     default: return { base: 100, variance: 20 };

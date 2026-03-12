@@ -551,10 +551,10 @@ export const KnifeManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* 区域 3: 刀盘间隙趋势 (更新为图表) */}
+                    {/* 区域 3: 间隙趋势 (更新为图表) */}
                     <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2 border-l-4 border-system-primary pl-2">
-                         刀盘间隙趋势 (自然周)
+                         间隙趋势 (自然周)
                        </h3>
                         <div className="border border-gray-100 rounded bg-white p-2">
                            <GapTrendChart data={gapAnalysis} />

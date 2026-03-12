@@ -388,23 +388,16 @@ const updateRefinerData = (prevData: any, isRunning: boolean, simulateOverload: 
 
   if (simulateOverload) {
       // --- 高功率演示脚本 ---
-      // 0s - 5s: 正常波动 (150-170KW)
-      // 5s - 15s: 线性爬升，目标突破 190KW
-      // 15s+: 维持高位 (192-200KW) 触发报警
+      // 0s - 5s: 快速爬升至 200KW
+      // 5s+: 维持在 200KW 触发报警
 
       if (elapsedMs < 5000) {
-          // 初始阶段：正常波动
-          newPower += (Math.random() - 0.5) * 4;
-          if (newPower < 150) newPower = 150 + Math.random() * 5;
-          if (newPower > 170) newPower = 170 - Math.random() * 5;
-      } else if (elapsedMs < 15000) {
-          // 爬升阶段：每秒约提升 3-5 KW
-          newPower += 2 + Math.random() * 2; 
-      } else {
-          // 报警阶段：维持在 192KW 以上
-          newPower += (Math.random() - 0.5) * 4;
-          if (newPower < 192) newPower = 192 + Math.random();
+          // 爬升阶段：每秒约提升 10-15 KW，目标 200
+          newPower += 10 + Math.random() * 5; 
           if (newPower > 200) newPower = 200;
+      } else {
+          // 报警阶段：维持在 200KW
+          newPower = 200;
       }
   } else {
       // --- 正常运行模式 ---
@@ -750,8 +743,8 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
   }, [id, status, simulateOverload]); // 添加 id 依赖
 
   const isRun = status === 'RUN';
-  // 功率 > 190 红色警告
-  const isOverload = data.power > 190;
+  // 功率 >= 200 红色警告
+  const isOverload = data.power >= 200;
   // 使用传入的 assignedRotation 决定动画方向
   const isCW = assignedRotation === '正转';
   const directionMultiplier = isCW ? 1 : -1;
@@ -859,15 +852,15 @@ const PipelineRefinerCard = ({ id, name, model, status, assignedRotation = '正�
                  </span>
               </div>
            </div>
-           {/* 1.3.2 流量与灵敏度 (合并为一行) */}
+           {/* 1.3.2 间隙与灵敏度 (合并为一行) */}
            <div className="grid grid-cols-3 gap-1 mt-1 pt-2 border-t border-slate-100 items-end">
-               {/* 流量 */}
+               {/* 间隙 */}
                <div className="flex flex-col items-start">
                    <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium mb-0.5">
-                       <Droplet size={10} className="text-blue-400"/> 流量
+                       <Activity size={10} className="text-indigo-400"/> 间隙
                    </div>
                    <div className="font-mono font-bold text-base text-slate-700 leading-none">
-                       {data.flow} <span className="text-[10px] font-normal text-slate-400 scale-90">L/m</span>
+                       {data.currentGap} <span className="text-[10px] font-normal text-slate-400 scale-90">mm</span>
                    </div>
                </div>
                

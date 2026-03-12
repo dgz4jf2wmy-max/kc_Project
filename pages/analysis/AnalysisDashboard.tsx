@@ -129,7 +129,7 @@ const PARAMS = [
     requirements: { min: 0.75, max: 0.85 }
   },
   { id: 'dyn-01', name: '电机功率', unit: 'kW', color: '#3b82f6', min: 300, max: 500 },
-  { id: 'dyn-07', name: '刀盘间隙', unit: 'mm', color: '#8b5cf6', min: 0, max: 2 },
+  { id: 'dyn-07', name: '间隙', unit: 'mm', color: '#8b5cf6', min: 0, max: 2 },
   { id: 'dyn-05', name: '流量', unit: 'm³/h', color: '#ec4899', min: 100, max: 200 },
   { id: 'dyn-06', name: '浓度', unit: '%', color: '#10b981', min: 2, max: 6 },
 ];
