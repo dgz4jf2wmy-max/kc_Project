@@ -1,12 +1,27 @@
-import React from 'react';
-import { X, History, Activity } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, History, Activity, AlertTriangle } from 'lucide-react';
+import { fetchAlertHistory, SmartAlertRecord } from '../../../services/smartAlertService';
 
 interface SmartAlertHistoryDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onItemClick?: (record: SmartAlertRecord) => void;
 }
 
-export const SmartAlertHistoryDrawer: React.FC<SmartAlertHistoryDrawerProps> = ({ isOpen, onClose }) => {
+export const SmartAlertHistoryDrawer: React.FC<SmartAlertHistoryDrawerProps> = ({ isOpen, onClose, onItemClick }) => {
+  const [history, setHistory] = useState<SmartAlertRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      fetchAlertHistory().then(data => {
+        setHistory(data);
+        setLoading(false);
+      });
+    }
+  }, [isOpen]);
+
   return (
     <>
       {/* 透明遮罩层，用于点击外部关闭 */}
@@ -36,59 +51,52 @@ export const SmartAlertHistoryDrawer: React.FC<SmartAlertHistoryDrawerProps> = (
           </button>
         </div>
         
-        {/* Body (Skeleton List) */}
+        {/* Body (List) */}
         <div className="px-4 pb-6 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
-          
-          {/* 骨架记录项 1 */}
-          <div className="p-4 rounded-2xl bg-white/20 border border-white/30 shadow-sm hover:bg-white/30 transition-colors cursor-pointer group">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-red-500/10 rounded-lg">
-                  <Activity size={16} className="text-red-500" />
+          {loading ? (
+            <div className="text-center text-slate-500 py-4 text-sm">加载中...</div>
+          ) : history.length === 0 ? (
+            <div className="text-center text-slate-500 py-4 text-sm">暂无历史记录</div>
+          ) : (
+            history.map((record) => (
+              <div 
+                key={record.id}
+                className={`p-4 rounded-2xl border shadow-sm transition-colors cursor-pointer group ${
+                  record.status === 'canceled' 
+                    ? 'bg-white border-slate-200 hover:bg-slate-50 opacity-80' 
+                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+                onClick={() => {
+                  if (onItemClick) onItemClick(record);
+                  onClose();
+                }}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-lg ${
+                      record.exceptionType.includes('叩解度') ? 'bg-red-500/10' : 'bg-orange-500/10'
+                    }`}>
+                      <AlertTriangle size={16} className={
+                        record.exceptionType.includes('叩解度') ? 'text-red-500' : 'text-orange-500'
+                      } />
+                    </div>
+                    <span className="font-semibold text-slate-800 text-sm">{record.exceptionType}</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">{record.startTime}</span>
                 </div>
-                <div className="h-3.5 bg-slate-200/80 rounded w-24 animate-pulse"></div>
-              </div>
-              <div className="h-3 bg-slate-200/80 rounded w-12 animate-pulse mt-1"></div>
-            </div>
-            <div className="space-y-2.5 pl-9">
-              <div className="h-2.5 bg-slate-200/80 rounded w-full animate-pulse"></div>
-              <div className="h-2.5 bg-slate-200/80 rounded w-5/6 animate-pulse"></div>
-            </div>
-          </div>
-
-          {/* 骨架记录项 2 */}
-          <div className="p-4 rounded-2xl bg-white/20 border border-white/30 shadow-sm hover:bg-white/30 transition-colors cursor-pointer group">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-orange-500/10 rounded-lg">
-                  <Activity size={16} className="text-orange-500" />
+                <div className="space-y-1.5 pl-9">
+                  <div className="text-sm text-slate-700">
+                    <span className="text-slate-500 mr-2">异常值:</span>
+                    <span className="font-medium text-slate-800">{record.exceptionValue} {record.unit}</span>
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+                    {record.status === 'confirmed' ? '已确认下发' : '已取消/忽略'}
+                  </div>
                 </div>
-                <div className="h-3.5 bg-slate-200/80 rounded w-20 animate-pulse"></div>
               </div>
-              <div className="h-3 bg-slate-200/80 rounded w-12 animate-pulse mt-1"></div>
-            </div>
-            <div className="space-y-2.5 pl-9">
-              <div className="h-2.5 bg-slate-200/80 rounded w-full animate-pulse"></div>
-              <div className="h-2.5 bg-slate-200/80 rounded w-3/4 animate-pulse"></div>
-            </div>
-          </div>
-          
-          {/* 骨架记录项 3 */}
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20 shadow-sm hover:bg-white/20 transition-colors cursor-pointer group opacity-80">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-slate-500/10 rounded-lg">
-                  <Activity size={16} className="text-slate-500" />
-                </div>
-                <div className="h-3.5 bg-slate-200/80 rounded w-28 animate-pulse"></div>
-              </div>
-              <div className="h-3 bg-slate-200/80 rounded w-12 animate-pulse mt-1"></div>
-            </div>
-            <div className="space-y-2.5 pl-9">
-              <div className="h-2.5 bg-slate-200/80 rounded w-full animate-pulse"></div>
-            </div>
-          </div>
-          
+            ))
+          )}
         </div>
       </div>
     </>

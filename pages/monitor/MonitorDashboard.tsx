@@ -1426,7 +1426,9 @@ export const MonitorDashboard = () => {
 
   // --- 智能预警相关状态 ---
   const [activeAlert, setActiveAlert] = useState<SmartAlertRecord | null>(null);
+  const [selectedAlert, setSelectedAlert] = useState<SmartAlertRecord | null>(null);
   const [isSmartAlertModalOpen, setIsSmartAlertModalOpen] = useState(false);
+  const [isSmartAlertModalReadOnly, setIsSmartAlertModalReadOnly] = useState(false);
   const [isSmartAlertDrawerOpen, setIsSmartAlertDrawerOpen] = useState(false);
 
   // 模拟初始化获取预警
@@ -1596,7 +1598,12 @@ export const MonitorDashboard = () => {
       {/* --- 智能预警组件 --- */}
       {activeAlert ? (
         <SmartAlertNotification 
-          onClick={() => setIsSmartAlertModalOpen(true)} 
+          alert={activeAlert}
+          onClick={() => {
+            setSelectedAlert(activeAlert);
+            setIsSmartAlertModalReadOnly(false);
+            setIsSmartAlertModalOpen(true);
+          }} 
           onDismiss={() => setActiveAlert(null)}
         />
       ) : (
@@ -1605,13 +1612,21 @@ export const MonitorDashboard = () => {
 
       <SmartAlertModal 
         isOpen={isSmartAlertModalOpen} 
+        alert={selectedAlert}
         onConfirm={handleAlertConfirm} 
         onCancel={handleAlertCancel} 
+        isReadOnly={isSmartAlertModalReadOnly}
+        onClose={() => setIsSmartAlertModalOpen(false)}
       />
 
       <SmartAlertHistoryDrawer 
         isOpen={isSmartAlertDrawerOpen} 
         onClose={() => setIsSmartAlertDrawerOpen(false)} 
+        onItemClick={(record) => {
+          setSelectedAlert(record);
+          setIsSmartAlertModalReadOnly(true);
+          setIsSmartAlertModalOpen(true);
+        }}
       />
       {/* --- 智能预警组件结束 --- */}
       
