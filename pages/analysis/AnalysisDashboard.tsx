@@ -826,17 +826,25 @@ export const AnalysisDashboard: React.FC = () => {
 
       const option: echarts.EChartsOption = {
           tooltip: {
-              trigger: 'axis',
+              trigger: 'item',
               axisPointer: { 
-                  type: 'line', 
-                  lineStyle: { color: '#cbd5e1', type: 'solid' },
-                  z: 100 // Ensure it's on top
+                  type: 'shadow',
+                  z: 100
               },
               formatter: (params: any) => {
-                  if (Array.isArray(params) && params.length > 0) {
-                      return params[0].axisValue;
+                  if (params.componentSubType === 'custom') {
+                      const device = ['4#', '3#', '1#'][params.value[0]];
+                      const value = params.value[3];
+                      const isAdvance = parseFloat(value) > 0;
+                      return `
+                          <div class="font-bold text-slate-800 mb-1">${device} 精浆机</div>
+                          <div class="text-xs text-slate-600">
+                              操作: <span class="${isAdvance ? 'text-emerald-600' : 'text-orange-600'} font-bold">${isAdvance ? '进刀' : '退刀'}</span><br/>
+                              数值: <span class="font-mono">${value}mm</span>
+                          </div>
+                      `;
                   }
-                  return '';
+                  return params.name;
               }
           },
           dataZoom: [
@@ -924,8 +932,7 @@ export const AnalysisDashboard: React.FC = () => {
                       ]
                   };
               },
-              data: ganttData,
-              silent: true // 设为 silent 以便不阻挡 AxisPointer
+              data: ganttData
             }
           ]
       };
@@ -965,19 +972,6 @@ export const AnalysisDashboard: React.FC = () => {
                     });
                 }
             }
-         });
-
-         // Add click event for Gantt Chart to show operation popover
-         ganttInstance.current.getZr().on('click', (params: any) => {
-             if (params && params.event) {
-                 const e = params.event;
-                 // Position the popover near the click, adjusting so it doesn't go off-screen
-                 setOperationPopover({ 
-                     visible: true, 
-                     x: e.clientX - 200, // Center horizontally relative to click
-                     y: e.clientY - 420  // Place above the click (Gantt is at the bottom)
-                 });
-             }
          });
       }
     } catch (error) {
@@ -1849,7 +1843,17 @@ export const AnalysisDashboard: React.FC = () => {
            hasData && showDetailsAndTimeline ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}>
            {/* Gantt Chart Area */}
-           <div className="w-full h-[80px] border-b border-slate-50 relative cursor-pointer" title="点击查看操作记录">
+           <div 
+              className="w-full h-[80px] border-b border-slate-50 relative cursor-pointer" 
+              title="点击查看操作记录"
+              onClick={(e) => {
+                 setOperationPopover({ 
+                     visible: true, 
+                     x: e.clientX - 200, 
+                     y: e.clientY - 420  
+                 });
+              }}
+           >
               <div ref={ganttChartRef} className="w-full h-full" />
            </div>
            
